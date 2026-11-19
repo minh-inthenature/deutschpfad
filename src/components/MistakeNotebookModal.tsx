@@ -350,7 +350,7 @@ export const MistakeNotebookModal: React.FC<MistakeNotebookModalProps> = ({
                   </h3>
                   <p className="mt-1 text-xs leading-relaxed text-stone-500">
                     {statusView === 'active'
-                      ? 'Any wrong answers during Vocab Check drills are captured here automatically.'
+                      ? 'Any wrong answers during Test drills are captured here automatically.'
                       : 'Answer an active mistake correctly 2 times in a row to resolve it.'}
                   </p>
                 </div>

@@ -205,7 +205,7 @@ export const LearnView: React.FC = () => {
         <div className="mb-3 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-900">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
           <span>
-            Added <strong>{justAddedWord}</strong> to Vocab Check!
+            Added <strong>{justAddedWord}</strong> to Test!
           </span>
         </div>
       )}
@@ -366,7 +366,7 @@ export const LearnView: React.FC = () => {
           </h2>
           <p className="mt-1.5 text-sm text-stone-500">
             {levelFilter === 'ALL' && topicFilter === 'ALL'
-              ? 'Every word is already in your active practice deck. Head to Vocab Check to review!'
+              ? 'Every word is already in your active practice deck. Head to Test to review!'
               : 'No remaining new words match this level and topic filter.'}
           </p>
           {(levelFilter !== 'ALL' || topicFilter !== 'ALL') && (

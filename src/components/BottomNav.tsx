@@ -13,7 +13,7 @@ interface BottomNavProps {
 const NAV_ITEMS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'learn', label: 'Learn', icon: BookOpen },
-  { id: 'vocab-check', label: 'Vocab Check', icon: CheckCircle2 },
+  { id: 'vocab-check', label: 'Test', icon: CheckCircle2 },
   { id: 'milestones', label: 'Milestones', icon: Flag },
   { id: 'dictionary', label: 'Dictionary', icon: BookA },
 ];

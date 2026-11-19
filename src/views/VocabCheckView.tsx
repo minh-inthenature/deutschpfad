@@ -307,7 +307,7 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
       <header className="mb-3 flex items-end justify-between gap-2">
         <div>
           <h1 className="font-editorial text-2xl font-bold tracking-tight text-slate-950">
-            Vocab Check
+            Test
           </h1>
           <p className="text-xs text-stone-500">
             SRS recall drills &amp; active German fluency trainers
@@ -390,7 +390,7 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
       {mode === 'case-blitz' && <CaseBlitzDrill />}
       {mode === 'satzbau' && <SentenceBuilderDrill />}
 
-      {/* Level Filter for Core Vocab Check modes (A0 -> B1) */}
+      {/* Level Filter for Core Test modes (A0 -> B1) */}
       {isCoreVocabMode && (
         <div className="mb-3 flex items-center gap-1">
           {(['ALL', 'A0', 'A1', 'A2', 'B1'] as const).map((lvl) => (
