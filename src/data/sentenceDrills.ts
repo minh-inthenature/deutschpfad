@@ -1,0 +1,322 @@
+import type { CefrLevel } from '../db/database';
+
+export interface TileSentenceDrill {
+  id: string;
+  level: CefrLevel;
+  grammarRule: string;
+  english: string;
+  correctTokens: string[];
+  distractors: string[]; // Wrong-case or wrong-verb distractors mixed into the tile bank
+  explanation: string;
+}
+
+export interface SelfTypeSentenceDrill {
+  id: string;
+  level: CefrLevel;
+  targetTag: string; // e.g., 'Perfekt' | 'V2 Inversion' | 'Modal Bracket' | 'weil Verb-Final'
+  baseWords: string; // e.g., 'wir / besuchen / die Freunde'
+  english: string;
+  targetSentence: string;
+  acceptedAlternatives?: string[];
+  explanation: string;
+}
+
+export const TILE_SENTENCE_DRILLS: TileSentenceDrill[] = [
+  // A1
+  {
+    id: 'ts-01',
+    level: 'A1',
+    grammarRule: 'V2 Word Order',
+    english: 'Today I am drinking a hot coffee.',
+    correctTokens: ['Heute', 'trinke', 'ich', 'einen', 'heißen', 'Kaffee.'],
+    distractors: ['ein', 'trinken'],
+    explanation: 'With "Heute" in Position 1, the verb "trinke" stays in Position 2, and masculine "Kaffee" takes Accusative "einen".',
+  },
+  {
+    id: 'ts-02',
+    level: 'A1',
+    grammarRule: 'V2 Word Order',
+    english: 'Tomorrow we are going to the train station.',
+    correctTokens: ['Morgen', 'gehen', 'wir', 'zum', 'Bahnhof.'],
+    distractors: ['geht', 'den'],
+    explanation: 'Starting with time ("Morgen") puts the conjugated verb "gehen" in Position 2 before "wir".',
+  },
+  {
+    id: 'ts-03',
+    level: 'A1',
+    grammarRule: 'Modal Verb Bracket',
+    english: 'I have to buy bread and milk today.',
+    correctTokens: ['Ich', 'muss', 'heute', 'Brot', 'und', 'Milch', 'kaufen.'],
+    distractors: ['kaufe', 'müssen'],
+    explanation: 'Modal verb "muss" stands in Position 2, while the infinitive "kaufen" closes the sentence bracket at the end.',
+  },
+  {
+    id: 'ts-04',
+    level: 'A1',
+    grammarRule: 'Modal Verb Bracket',
+    english: 'Can you help me with the suitcase?',
+    correctTokens: ['Kannst', 'du', 'mir', 'mit', 'dem', 'Koffer', 'helfen?'],
+    distractors: ['mich', 'den'],
+    explanation: 'Yes/No questions start with the modal "Kannst", "helfen" takes Dative "mir", and "mit" triggers Dative "dem".',
+  },
+  {
+    id: 'ts-05',
+    level: 'A1',
+    grammarRule: 'Separable Verb Bracket',
+    english: 'The train departs at nine o’clock.',
+    correctTokens: ['Der', 'Zug', 'fährt', 'um', 'neun', 'Uhr', 'ab.'],
+    distractors: ['abfahren', 'den'],
+    explanation: 'Separable verb "abfahren": conjugated stem "fährt" sits in Position 2, prefix "ab" goes to the very end.',
+  },
+  {
+    id: 'ts-06',
+    level: 'A1',
+    grammarRule: 'Accusative & Negation',
+    english: 'Unfortunately I have no key.',
+    correctTokens: ['Leider', 'habe', 'ich', 'keinen', 'Schlüssel.'],
+    distractors: ['kein', 'nicht'],
+    explanation: 'Masculine noun "der Schlüssel" is negated in Accusative with "keinen".',
+  },
+  // A2
+  {
+    id: 'ts-07',
+    level: 'A2',
+    grammarRule: 'Perfekt Bracket',
+    english: 'Yesterday we traveled to Berlin by train.',
+    correctTokens: ['Gestern', 'sind', 'wir', 'mit', 'dem', 'Zug', 'nach', 'Berlin', 'gefahren.'],
+    distractors: ['haben', 'den'],
+    explanation: '"fahren" expresses movement → uses "sein" ("sind") in Position 2 and "gefahren" at the end; "mit" takes Dative "dem".',
+  },
+  {
+    id: 'ts-08',
+    level: 'A2',
+    grammarRule: 'Perfekt Bracket',
+    english: 'She prepared the presentation very well.',
+    correctTokens: ['Sie', 'hat', 'die', 'Präsentation', 'sehr', 'gut', 'vorbereitet.'],
+    distractors: ['ist', 'vorbereiten'],
+    explanation: 'Auxiliary "hat" sits in Position 2 and Partizip II "vorbereitet" (no ge- because of be-) goes to the end.',
+  },
+  {
+    id: 'ts-09',
+    level: 'A2',
+    grammarRule: 'weil Verb-Final Clause',
+    english: 'I am staying at home because I am tired.',
+    correctTokens: ['Ich', 'bleibe', 'zu', 'Hause,', 'weil', 'ich', 'müde', 'bin.'],
+    distractors: ['bist', 'denn'],
+    explanation: 'Subordinating conjunction "weil" sends the conjugated verb "bin" to the very end of the clause.',
+  },
+  {
+    id: 'ts-10',
+    level: 'A2',
+    grammarRule: 'weil Verb-Final Clause',
+    english: 'We are taking the bus because it is raining.',
+    correctTokens: ['Wir', 'nehmen', 'den', 'Bus,', 'weil', 'es', 'regnet.'],
+    distractors: ['dem', 'regnen'],
+    explanation: '"nehmen" takes Accusative "den Bus", and "weil" puts "regnet" at the end.',
+  },
+  {
+    id: 'ts-11',
+    level: 'A2',
+    grammarRule: 'Two-Way Preposition (Dative)',
+    english: 'The book is lying on the big table.',
+    correctTokens: ['Das', 'Buch', 'liegt', 'auf', 'dem', 'großen', 'Tisch.'],
+    distractors: ['den', 'legt'],
+    explanation: 'Static location (Wo?) uses "liegen" + Dative "auf dem großen Tisch".',
+  },
+  {
+    id: 'ts-12',
+    level: 'A2',
+    grammarRule: 'dass Verb-Final Clause',
+    english: 'I know that the appointment is important.',
+    correctTokens: ['Ich', 'weiß,', 'dass', 'der', 'Termin', 'wichtig', 'ist.'],
+    distractors: ['den', 'sind'],
+    explanation: '"dass" introduces a subordinate clause, sending "ist" to the final position.',
+  },
+  // B1
+  {
+    id: 'ts-13',
+    level: 'B1',
+    grammarRule: 'Konjunktiv II Polite Request',
+    english: 'Could you please explain the rule to me?',
+    correctTokens: ['Könnten', 'Sie', 'mir', 'bitte', 'die', 'Regel', 'erklären?'],
+    distractors: ['mich', 'erklärt'],
+    explanation: 'Polite Konjunktiv II "Könnten" opens the question, Dative "mir" marks the recipient, infinitive "erklären" closes.',
+  },
+  {
+    id: 'ts-14',
+    level: 'B1',
+    grammarRule: 'um ... zu Infinitive Clause',
+    english: 'I practice daily in order to make progress.',
+    correctTokens: ['Ich', 'übe', 'täglich,', 'um', 'Fortschritte', 'zu', 'machen.'],
+    distractors: ['damit', 'mache'],
+    explanation: 'Same subject in both clauses → "um ... zu + infinitive" ("um Fortschritte zu machen").',
+  },
+  {
+    id: 'ts-15',
+    level: 'B1',
+    grammarRule: 'Relative Clause (Accusative)',
+    english: 'That is the contract that I signed yesterday.',
+    correctTokens: ['Das', 'ist', 'der', 'Vertrag,', 'den', 'ich', 'gestern', 'unterschrieben', 'habe.'],
+    distractors: ['dem', 'hat'],
+    explanation: 'Masculine "Vertrag" is the Accusative object inside the relative clause → "den", with "habe" at the end.',
+  },
+  {
+    id: 'ts-16',
+    level: 'B1',
+    grammarRule: 'Passive Voice (Modal)',
+    english: 'The environment must be protected.',
+    correctTokens: ['Die', 'Umwelt', 'muss', 'geschützt', 'werden.'],
+    distractors: ['wird', 'schützen'],
+    explanation: 'Modal passive follows the bracket: Modal ("muss") + Partizip II ("geschützt") + "werden".',
+  },
+  {
+    id: 'ts-17',
+    level: 'B1',
+    grammarRule: 'obwohl Verb-Final Clause',
+    english: 'Although it is raining, we are going for a walk.',
+    correctTokens: ['Obwohl', 'es', 'regnet,', 'gehen', 'wir', 'spazieren.'],
+    distractors: ['wir gehen', 'trotzdem'],
+    explanation: 'When the "obwohl" clause comes first, the main clause starts immediately with the verb (Verb-Comma-Verb: "regnet, gehen").',
+  },
+  {
+    id: 'ts-18',
+    level: 'B1',
+    grammarRule: 'Genitive Preposition',
+    english: 'Because of the bad weather we are staying inside.',
+    correctTokens: ['Wegen', 'des', 'schlechten', 'Wetters', 'bleiben', 'wir', 'drinnen.'],
+    distractors: ['dem', 'Wetter'],
+    explanation: '"wegen" triggers Genitive: neuter "das Wetter" → "des schlechten Wetters", followed by V2 "bleiben wir".',
+  },
+];
+
+export const SELF_TYPE_SENTENCE_DRILLS: SelfTypeSentenceDrill[] = [
+  {
+    id: 'st-01',
+    level: 'A1',
+    targetTag: 'Perfekt',
+    baseWords: 'wir / besuchen / die Freunde',
+    english: 'We visited the friends.',
+    targetSentence: 'Wir haben die Freunde besucht.',
+    explanation: '"besuchen" has inseparable prefix "be-" (no ge-) and takes "haben" → Wir haben die Freunde besucht.',
+  },
+  {
+    id: 'st-02',
+    level: 'A1',
+    targetTag: 'V2 Word Order',
+    baseWords: 'heute / ich / trinken / ein Kaffee (Akk.)',
+    english: 'Today I am drinking a coffee.',
+    targetSentence: 'Heute trinke ich einen Kaffee.',
+    explanation: '"Heute" in Position 1 puts "trinke" in Position 2; masculine "Kaffee" takes Accusative "einen".',
+  },
+  {
+    id: 'st-03',
+    level: 'A1',
+    targetTag: 'Modal Bracket',
+    baseWords: 'ich / müssen / morgen / früh / aufstehen',
+    english: 'I have to get up early tomorrow.',
+    targetSentence: 'Ich muss morgen früh aufstehen.',
+    acceptedAlternatives: ['Morgen muss ich früh aufstehen.'],
+    explanation: 'Modal verb "muss" in Position 2, infinitive "aufstehen" stays together at the end.',
+  },
+  {
+    id: 'st-04',
+    level: 'A1',
+    targetTag: 'Negation (kein)',
+    baseWords: 'er / haben / kein / Zeit',
+    english: 'He has no time.',
+    targetSentence: 'Er hat keine Zeit.',
+    explanation: '"die Zeit" is feminine, so the negative article in Accusative is "keine".',
+  },
+  {
+    id: 'st-05',
+    level: 'A1',
+    targetTag: 'Dative Preposition',
+    baseWords: 'wir / fahren / mit / der Zug',
+    english: 'We are traveling by train.',
+    targetSentence: 'Wir fahren mit dem Zug.',
+    explanation: '"mit" always triggers Dative → masculine "der Zug" becomes "dem Zug".',
+  },
+  {
+    id: 'st-06',
+    level: 'A2',
+    targetTag: 'Perfekt (sein)',
+    baseWords: 'gestern / ich / fahren / nach Berlin',
+    english: 'Yesterday I traveled to Berlin.',
+    targetSentence: 'Gestern bin ich nach Berlin gefahren.',
+    acceptedAlternatives: ['Ich bin gestern nach Berlin gefahren.'],
+    explanation: '"fahren" indicates movement from A to B → auxiliary "sein" ("bin") + "gefahren" at the end.',
+  },
+  {
+    id: 'st-07',
+    level: 'A2',
+    targetTag: 'weil Verb-Final',
+    baseWords: 'ich / lernen / Deutsch, / weil / es / wichtig / sein',
+    english: 'I am learning German because it is important.',
+    targetSentence: 'Ich lerne Deutsch, weil es wichtig ist.',
+    explanation: 'After "weil", the conjugated verb "ist" must move to the very end of the clause.',
+  },
+  {
+    id: 'st-08',
+    level: 'A2',
+    targetTag: 'Dative Verb',
+    baseWords: 'ich / helfen / mein Nachbar',
+    english: 'I am helping my neighbor.',
+    targetSentence: 'Ich helfe meinem Nachbarn.',
+    explanation: '"helfen" takes Dative, and "Nachbar" is a weak noun (n-Declension) → meinem Nachbarn.',
+  },
+  {
+    id: 'st-09',
+    level: 'A2',
+    targetTag: 'Two-Way Prep (Akk.)',
+    baseWords: 'sie / legen / das Buch / auf / der Tisch',
+    english: 'She puts the book onto the table.',
+    targetSentence: 'Sie legt das Buch auf den Tisch.',
+    explanation: '"legen" expresses direction (Wohin?) → "auf" takes Accusative: "auf den Tisch".',
+  },
+  {
+    id: 'st-10',
+    level: 'A2',
+    targetTag: 'Separable Perfekt',
+    baseWords: 'ich / einladen / mein Freund (Akk.)',
+    english: 'I invited my friend.',
+    targetSentence: 'Ich habe meinen Freund eingeladen.',
+    explanation: 'Separable verb "einladen" forms Partizip II as "eingeladen"; masculine "Freund" takes "meinen".',
+  },
+  {
+    id: 'st-11',
+    level: 'B1',
+    targetTag: 'Konjunktiv II',
+    baseWords: 'können / Sie / mir / bitte / helfen?',
+    english: 'Could you please help me?',
+    targetSentence: 'Könnten Sie mir bitte helfen?',
+    acceptedAlternatives: ['Könnten Sie bitte mir helfen?'],
+    explanation: 'Polite request uses Konjunktiv II "Könnten" + formal "Sie" + Dative "mir" + infinitive "helfen".',
+  },
+  {
+    id: 'st-12',
+    level: 'B1',
+    targetTag: 'um ... zu Clause',
+    baseWords: 'wir / sparen / Geld, / um / ein Haus / kaufen',
+    english: 'We are saving money in order to buy a house.',
+    targetSentence: 'Wir sparen Geld, um ein Haus zu kaufen.',
+    explanation: 'Purpose with same subject uses comma + "um ... zu + infinitive".',
+  },
+  {
+    id: 'st-13',
+    level: 'B1',
+    targetTag: 'Passive (Präsens)',
+    baseWords: 'die Miete / werden / jeden Monat / überweisen',
+    english: 'The rent is transferred every month.',
+    targetSentence: 'Die Miete wird jeden Monat überwiesen.',
+    explanation: 'Present passive = conjugated "werden" ("wird") + Partizip II ("überwiesen").',
+  },
+  {
+    id: 'st-14',
+    level: 'B1',
+    targetTag: 'obwohl Verb-Final',
+    baseWords: 'obwohl / er / müde / sein, / arbeiten / er / weiter',
+    english: 'Although he is tired, he keeps working.',
+    targetSentence: 'Obwohl er müde ist, arbeitet er weiter.',
+    explanation: 'Verb-Comma-Verb: "ist" ends the "obwohl" clause, and "arbeitet" opens the main clause.',
+  },
+];
