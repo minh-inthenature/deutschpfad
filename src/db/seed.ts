@@ -6,7 +6,15 @@ import { VOCAB_B1 } from '../data/vocabB1';
 import { VOCAB_CORE_80 } from '../data/vocabCore80';
 import { VOCAB_EXPANSION_150 } from '../data/vocabExpansion150';
 import { VOCAB_EXPANSION_200 } from '../data/vocabExpansion200';
+import { VOCAB_EXPANSION_190 } from '../data/vocabExpansion190';
 import { ALL_MILESTONES } from '../data/milestones';
+
+function toStandardGender(article: string, gender?: string): string | undefined {
+  if (gender === 'masc.' || article === 'der') return 'masc.';
+  if (gender === 'fem.' || article === 'die') return 'fem.';
+  if (gender === 'neut.' || article === 'das') return 'neut.';
+  return gender;
+}
 
 // Deduplicate by exact German casing (preserves distinctions like 'sie' vs. 'Sie'),
 // prioritizing lower CEFR levels (A0 -> A1 -> A2 -> B1)
@@ -21,6 +29,7 @@ function buildOrderedSeedVocab(): SeedVocabInput[] {
     ...VOCAB_CORE_80,
     ...VOCAB_EXPANSION_150,
     ...VOCAB_EXPANSION_200,
+    ...VOCAB_EXPANSION_190,
   ]) {
     const key = item.german.trim();
     if (!seen.has(key)) {
@@ -28,7 +37,7 @@ function buildOrderedSeedVocab(): SeedVocabInput[] {
       combined.push({
         ...item,
         word: item.word ?? item.german,
-        gender: item.gender ?? item.article,
+        gender: toStandardGender(item.article, item.gender),
       });
     }
   }
@@ -78,13 +87,13 @@ export function seedDatabaseIfNeeded(): Promise<void> {
               adjectiveForms: seed.adjectiveForms,
               grammarNote: seed.grammarNote,
               word: seed.word ?? seed.german,
-              gender: seed.gender ?? seed.article,
+              gender: toStandardGender(seed.article, seed.gender),
             });
           } else {
             toAddVocab.push({
               ...seed,
               word: seed.word ?? seed.german,
-              gender: seed.gender ?? seed.article,
+              gender: toStandardGender(seed.article, seed.gender),
               status: 'new',
               easeFactor: 2.5,
               intervalDays: 0,
