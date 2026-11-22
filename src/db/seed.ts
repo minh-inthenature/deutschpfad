@@ -34,11 +34,12 @@ function buildOrderedSeedVocab(): SeedVocabInput[] {
     const key = item.german.trim();
     if (!seen.has(key)) {
       seen.add(key);
+      const { id: _ignoredId, ...itemWithoutId } = item as { id?: number } & Record<string, unknown>;
       combined.push({
-        ...item,
+        ...itemWithoutId,
         word: item.word ?? item.german,
         gender: toStandardGender(item.article, item.gender),
-      });
+      } as SeedVocabInput);
     }
   }
   return combined;
@@ -90,8 +91,9 @@ export function seedDatabaseIfNeeded(): Promise<void> {
               gender: toStandardGender(seed.article, seed.gender),
             });
           } else {
+            const { id: _seedId, ...cleanSeed } = seed as (VocabItem & { id?: number });
             toAddVocab.push({
-              ...seed,
+              ...cleanSeed,
               word: seed.word ?? seed.german,
               gender: toStandardGender(seed.article, seed.gender),
               status: 'new',

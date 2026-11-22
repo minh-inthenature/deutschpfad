@@ -24,7 +24,7 @@ export const App: React.FC = () => {
     seedDatabaseIfNeeded()
       .then(() => setReady(true))
       .catch((err) => {
-        console.error('Failed to initialize DeutschPfad database:', err);
+        console.error('Failed to initialize DeutschPfad database:', err?.name, err?.message, err);
         setError('Could not initialize local offline database.');
       });
   }, []);
