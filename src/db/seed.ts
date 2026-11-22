@@ -1,4 +1,5 @@
 import { db, type SeedVocabInput, type VocabItem } from './database';
+import { syncCustomWordsToDb } from '../services/customWords';
 import { VOCAB_A0 } from '../data/vocabA0';
 import { VOCAB_A1 } from '../data/vocabA1';
 import { VOCAB_A2 } from '../data/vocabA2';
@@ -143,6 +144,7 @@ export function seedDatabaseIfNeeded(): Promise<void> {
           }
         }
       });
+      await syncCustomWordsToDb();
     })().catch((err) => {
       seedPromise = null;
       throw err;

@@ -11,6 +11,10 @@ import {
   Globe,
   WifiOff,
   Sparkles,
+  Volume2,
+  BookmarkPlus,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import {
   db,
@@ -24,7 +28,10 @@ import {
   vocabItemToDictionaryEntry,
 } from '../services/dictionaryApi';
 import { DictionaryDetailSheet } from '../components/DictionaryDetailSheet';
-import { getArticleStyle, getLevelStyle } from '../utils/german';
+import { AiWordPackModal } from '../components/AiWordPackModal';
+import { addCustomWords, type CustomWordInput } from '../services/customWords';
+import { defineWordWithAI, hasGeminiKey } from '../services/geminiTutor';
+import { getArticleStyle, getLevelStyle, speakGerman } from '../utils/german';
 
 type DictFilter = 'all' | 'noun' | 'verb' | 'adjective' | 'favorites';
 
@@ -56,6 +63,82 @@ export const DictionaryView: React.FC = () => {
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // AI Word Pack & Smart Dictionary Define state
+  const [aiAvailable, setAiAvailable] = useState<boolean>(() => hasGeminiKey());
+  const [aiPackModalOpen, setAiPackModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [aiDefining, setAiDefining] = useState(false);
+  const [aiDefinedWord, setAiDefinedWord] = useState<CustomWordInput | null>(null);
+  const [aiDefineError, setAiDefineError] = useState<string | null>(null);
+  const [aiSaved, setAiSaved] = useState(false);
+
+  useEffect(() => {
+    const syncKey = () => setAiAvailable(hasGeminiKey());
+    window.addEventListener('focus', syncKey);
+    window.addEventListener('storage', syncKey);
+    const id = window.setInterval(syncKey, 1500);
+    return () => {
+      window.removeEventListener('focus', syncKey);
+      window.removeEventListener('storage', syncKey);
+      window.clearInterval(id);
+    };
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    window.setTimeout(() => {
+      setToastMsg((prev) => (prev === msg ? null : prev));
+    }, 3500);
+  };
+
+  const customWordKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of vocabEntries ?? []) {
+      if (v.isCustom) {
+        set.add(`${(v.word ?? v.german).toLowerCase()}|${v.article.toLowerCase()}`);
+      }
+    }
+    return set;
+  }, [vocabEntries]);
+
+  const existingTopics = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of vocabEntries ?? []) {
+      if (v.topic) set.add(v.topic);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
+  }, [vocabEntries]);
+
+  const handleAskAiDefine = async () => {
+    const trimmed = query.trim();
+    if (!trimmed || aiDefining) return;
+    setAiDefining(true);
+    setAiDefineError(null);
+    setAiDefinedWord(null);
+    setAiSaved(false);
+    try {
+      const def = await defineWordWithAI(trimmed);
+      setAiDefinedWord(def);
+    } catch (err) {
+      setAiDefineError(err instanceof Error ? err.message : 'AI lookup failed.');
+    } finally {
+      setAiDefining(false);
+    }
+  };
+
+  const handleSaveAiWord = async () => {
+    if (!aiDefinedWord || aiSaved) return;
+    const { added } = await addCustomWords([aiDefinedWord]);
+    setAiSaved(true);
+    if (added.length > 0) {
+      showToast(`Saved "${aiDefinedWord.word}" to your deck!`);
+      // Refresh local search hits immediately
+      void searchLocalDictionary(query.trim()).then(setLocalHits);
+    } else {
+      showToast(`"${aiDefinedWord.word}" is already in your deck.`);
+    }
+  };
+
   // Track browser online / offline state live
   useEffect(() => {
     const onOnline = () => setIsOnline(true);
@@ -70,6 +153,9 @@ export const DictionaryView: React.FC = () => {
 
   // Instant local search + 350ms debounced online Wiktionary/MyMemory lookup
   useEffect(() => {
+    setAiDefinedWord(null);
+    setAiDefineError(null);
+    setAiSaved(false);
     const trimmed = query.trim();
     if (!trimmed) {
       setLocalHits([]);
@@ -257,6 +343,13 @@ export const DictionaryView: React.FC = () => {
             >
               {entry.level}
             </span>
+            {customWordKeys.has(
+              `${entry.german.toLowerCase()}|${entry.article.toLowerCase()}`,
+            ) && (
+              <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-extrabold text-blue-800">
+                ✨ Custom
+              </span>
+            )}
             {isLive && (
               <span className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-800">
                 <Sparkles className="h-2.5 w-2.5" />
@@ -283,26 +376,45 @@ export const DictionaryView: React.FC = () => {
     <div className="flex flex-col pb-6">
       {/* Sticky Search Header */}
       <div className="sticky top-0 z-20 border-b border-stone-200 bg-paper/95 px-4 pt-4 pb-3 backdrop-blur-md">
-        <div className="mb-2.5">
-          <h1 className="font-editorial text-2xl font-bold tracking-tight text-slate-950 leading-none">
-            Wörterbuch
-          </h1>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold">
-            {isOnline ? (
-              <>
-                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                <Globe className="h-3 w-3 text-emerald-700" />
-                <span className="text-emerald-800">Online Dictionary · Auto-Cached Locally</span>
-              </>
-            ) : (
-              <>
-                <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-                <WifiOff className="h-3 w-3 text-amber-700" />
-                <span className="text-amber-900">Offline Mode · Searching Cached Words</span>
-              </>
-            )}
+        <div className="mb-2.5 flex items-start justify-between gap-2">
+          <div>
+            <h1 className="font-editorial text-2xl font-bold tracking-tight text-slate-950 leading-none">
+              Wörterbuch
+            </h1>
+            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold">
+              {isOnline ? (
+                <>
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                  <Globe className="h-3 w-3 text-emerald-700" />
+                  <span className="text-emerald-800">Online Dictionary · Auto-Cached Locally</span>
+                </>
+              ) : (
+                <>
+                  <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                  <WifiOff className="h-3 w-3 text-amber-700" />
+                  <span className="text-amber-900">Offline Mode · Searching Cached Words</span>
+                </>
+              )}
+            </div>
           </div>
+
+          {aiAvailable && (
+            <button
+              type="button"
+              onClick={() => setAiPackModalOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-extrabold text-blue-800 shadow-2xs transition active:scale-95"
+            >
+              <Sparkles className="h-3 w-3" />
+              ✨ + AI Words
+            </button>
+          )}
         </div>
+
+        {toastMsg && (
+          <div className="mb-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-900">
+            {toastMsg}
+          </div>
+        )}
 
         {/* Search Input */}
         <div className="relative">
@@ -476,7 +588,7 @@ export const DictionaryView: React.FC = () => {
               </div>
             )}
 
-            {!isFetchingLive && mergedSearchResults.length === 0 && (
+            {!isFetchingLive && mergedSearchResults.length === 0 && !aiAvailable && (
               <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
                 <Search className="mx-auto h-7 w-7 text-stone-300" />
                 <p className="mt-2 text-sm font-bold text-slate-700">
@@ -489,6 +601,116 @@ export const DictionaryView: React.FC = () => {
                 </p>
               </div>
             )}
+
+            {/* Feature B: Smart AI Dictionary Lookup + One-Tap Save */}
+            {aiAvailable && query.trim().length >= 2 && mergedSearchResults.length <= 2 && (
+              <div className="mt-3 space-y-2.5">
+                {!aiDefinedWord && !aiDefining && (
+                  <button
+                    type="button"
+                    onClick={() => void handleAskAiDefine()}
+                    className="flex w-full items-center justify-between gap-2 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3.5 text-left transition hover:bg-blue-50 active:scale-[0.985]"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-extrabold text-blue-900">
+                        Not in offline deck — ✨ Ask AI to define &apos;{query.trim()}&apos;
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-blue-700">
+                        Get article, plural, example sentence &amp; save to your deck
+                      </p>
+                    </div>
+                    <Sparkles className="h-4 w-4 shrink-0 text-blue-700" />
+                  </button>
+                )}
+
+                {aiDefining && (
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white p-5 text-xs font-bold text-blue-800">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Defining &apos;{query.trim()}&apos; with Gemini AI...
+                  </div>
+                )}
+
+                {aiDefineError && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-800">
+                    {aiDefineError}
+                  </div>
+                )}
+
+                {aiDefinedWord && (
+                  <div className="rounded-3xl border border-blue-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {aiDefinedWord.article !== 'none' && (
+                          <span
+                            className={`rounded-md border px-2 py-0.5 text-xs font-extrabold ${getArticleStyle(aiDefinedWord.article).solid}`}
+                          >
+                            {aiDefinedWord.article}
+                          </span>
+                        )}
+                        <span className="font-editorial text-xl font-bold text-slate-950">
+                          {aiDefinedWord.word}
+                        </span>
+                        <span
+                          className={`rounded border px-1.5 py-0.5 text-[10px] font-extrabold ${getLevelStyle(aiDefinedWord.level)}`}
+                        >
+                          {aiDefinedWord.level}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void speakGerman(
+                            aiDefinedWord.article !== 'none'
+                              ? `${aiDefinedWord.article} ${aiDefinedWord.word}`
+                              : aiDefinedWord.word,
+                          )
+                        }
+                        aria-label="Pronounce word"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-slate-900 active:scale-90"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <p className="mt-1.5 text-sm font-bold text-slate-800">
+                      {aiDefinedWord.meaning}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-stone-500">
+                      {aiDefinedWord.gender ? `${aiDefinedWord.gender} · ` : ''}
+                      Plural: {aiDefinedWord.plural} · {aiDefinedWord.topic}
+                    </p>
+
+                    <div className="mt-3 rounded-2xl border border-stone-200 bg-stone-50 p-3 text-xs">
+                      <p className="font-semibold text-slate-900">{aiDefinedWord.exampleDe}</p>
+                      <p className="mt-0.5 text-stone-500">{aiDefinedWord.exampleEn}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={aiSaved}
+                      onClick={() => void handleSaveAiWord()}
+                      className={`mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl py-2.5 text-xs font-extrabold transition active:scale-[0.98] ${
+                        aiSaved
+                          ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : 'bg-slate-950 text-white'
+                      }`}
+                    >
+                      {aiSaved ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          Saved to My Deck
+                        </>
+                      ) : (
+                        <>
+                          <BookmarkPlus className="h-4 w-4" />
+                          Save to My Deck
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -498,6 +720,20 @@ export const DictionaryView: React.FC = () => {
         entry={selectedEntry}
         onClose={() => setSelectedEntry(null)}
         onJumpToWord={(w) => void handleJumpToWord(w)}
+      />
+
+      {/* Feature A: AI Word Pack Generator Modal */}
+      <AiWordPackModal
+        open={aiPackModalOpen}
+        onClose={() => setAiPackModalOpen(false)}
+        existingTopics={existingTopics}
+        onWordsAdded={(addedCount, lvl) => {
+          showToast(
+            addedCount > 0
+              ? `Added ${addedCount} new ${lvl} words to your deck!`
+              : 'All generated words were already in your deck.',
+          );
+        }}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Volume2,
@@ -18,6 +18,8 @@ import {
   shuffleArray,
   speakGerman,
 } from '../utils/german';
+import { AiWordPackModal } from '../components/AiWordPackModal';
+import { hasGeminiKey } from '../services/geminiTutor';
 
 export const LearnView: React.FC = () => {
   const allVocab = useLiveQuery(() => db.vocab.toArray(), []);
@@ -32,7 +34,22 @@ export const LearnView: React.FC = () => {
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [justAddedWord, setJustAddedWord] = useState<string | null>(null);
+  const [aiAvailable, setAiAvailable] = useState<boolean>(() => hasGeminiKey());
+  const [aiPackModalOpen, setAiPackModalOpen] = useState(false);
+  const [aiPackToast, setAiPackToast] = useState<string | null>(null);
   const touchStartXRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const syncKey = () => setAiAvailable(hasGeminiKey());
+    window.addEventListener('focus', syncKey);
+    window.addEventListener('storage', syncKey);
+    const id = window.setInterval(syncKey, 1500);
+    return () => {
+      window.removeEventListener('focus', syncKey);
+      window.removeEventListener('storage', syncKey);
+      window.clearInterval(id);
+    };
+  }, []);
 
   const availableTopics = useMemo(() => {
     const list = allVocabRef.current.length > 0 ? allVocabRef.current : (allVocab ?? []);
@@ -190,7 +207,17 @@ export const LearnView: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {aiAvailable && (
+            <button
+              type="button"
+              onClick={() => setAiPackModalOpen(true)}
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 text-[11px] font-extrabold text-blue-800 shadow-2xs transition active:scale-95"
+            >
+              <Sparkles className="h-3 w-3" />
+              ✨ + AI Words
+            </button>
+          )}
           <button
             type="button"
             onClick={handleShuffle}
@@ -238,6 +265,13 @@ export const LearnView: React.FC = () => {
       )}
 
       {/* Confirmation Banner */}
+      {aiPackToast && (
+        <div className="mb-3 flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-bold text-blue-900">
+          <Sparkles className="h-4 w-4 shrink-0 text-blue-700" />
+          <span>{aiPackToast}</span>
+        </div>
+      )}
+
       {justAddedWord && (
         <div className="mb-3 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-bold text-emerald-900">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
@@ -273,6 +307,11 @@ export const LearnView: React.FC = () => {
                 >
                   {currentCard.level}
                 </span>
+                {currentCard.isCustom && (
+                  <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-extrabold text-blue-800">
+                    ✨ Custom
+                  </span>
+                )}
                 {currentCard.status !== 'new' && (
                   <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-extrabold text-emerald-800">
                     Learned
@@ -435,6 +474,26 @@ export const LearnView: React.FC = () => {
           )}
         </div>
       )}
+
+      <AiWordPackModal
+        open={aiPackModalOpen}
+        onClose={() => setAiPackModalOpen(false)}
+        existingTopics={availableTopics}
+        onWordsAdded={(addedCount, lvl, addedTopic) => {
+          setAiPackToast(
+            addedCount > 0
+              ? `Added ${addedCount} new ${lvl} words to your deck!`
+              : 'All generated words were already in your deck.',
+          );
+          window.setTimeout(() => setAiPackToast(null), 4000);
+          if (addedCount > 0) {
+            setLevelFilter(lvl);
+            setTopicFilter(addedTopic);
+            setCardIndex(0);
+            setShuffleSeed((p) => p + 1);
+          }
+        }}
+      />
     </div>
   );
 };

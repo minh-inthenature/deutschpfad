@@ -73,6 +73,7 @@ export interface VocabItem {
   verbForms?: string;
   adjectiveForms?: string;
   grammarNote?: string;
+  isCustom?: boolean;
   status: VocabStatus;
   easeFactor: number;
   intervalDays: number;

@@ -6,6 +6,8 @@ import {
   RotateCcw,
   Trophy,
   Zap,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { CASE_DRILLS, type CaseDrillItem } from '../../data/caseDrills';
 import {
@@ -16,6 +18,11 @@ import {
 } from '../../db/database';
 import { getLevelStyle, speakGerman } from '../../utils/german';
 import { InlineMistakeNote } from '../InlineMistakeNote';
+import {
+  checkCaseChoiceWithAI,
+  hasGeminiKey,
+  type AiGrammarCheckResult,
+} from '../../services/geminiTutor';
 
 export const CaseBlitzDrill: React.FC = () => {
   const [levelFilter, setLevelFilter] = useState<'ALL' | CefrLevel>('ALL');
@@ -24,6 +31,8 @@ export const CaseBlitzDrill: React.FC = () => {
   const [mistakeId, setMistakeId] = useState<number | null>(null);
   const [score, setScore] = useState({ right: 0, total: 0, streak: 0 });
   const [showNounGender, setShowNounGender] = useState(true);
+  const [checkingAiCase, setCheckingAiCase] = useState(false);
+  const [aiCaseResult, setAiCaseResult] = useState<AiGrammarCheckResult | null>(null);
 
   const pool = useMemo(() => {
     if (levelFilter === 'ALL') return CASE_DRILLS;
@@ -37,12 +46,15 @@ export const CaseBlitzDrill: React.FC = () => {
     setIndex(0);
     setPicked(null);
     setMistakeId(null);
+    setAiCaseResult(null);
+    setCheckingAiCase(false);
     setScore({ right: 0, total: 0, streak: 0 });
   };
 
   const handlePick = async (choice: string) => {
     if (!item || picked !== null) return;
     setPicked(choice);
+    setAiCaseResult(null);
     const isRight = choice === item.answer;
     const itemTitle = `${item.sentenceBefore} ___ ${item.sentenceAfter}`.trim();
 
@@ -52,6 +64,11 @@ export const CaseBlitzDrill: React.FC = () => {
         itemTitle,
         mistakeType: 'Case',
       });
+      setScore((prev) => ({
+        right: prev.right + 1,
+        total: prev.total + 1,
+        streak: prev.streak + 1,
+      }));
     } else {
       const mId = await logMistake({
         vocabId: null,
@@ -61,13 +78,46 @@ export const CaseBlitzDrill: React.FC = () => {
         correctAnswer: item.answer,
       });
       setMistakeId(mId);
+      setScore((prev) => ({
+        right: prev.right,
+        total: prev.total + 1,
+        streak: 0,
+      }));
+
+      if (hasGeminiKey()) {
+        setCheckingAiCase(true);
+        checkCaseChoiceWithAI({
+          sentenceBefore: item.sentenceBefore,
+          sentenceAfter: item.sentenceAfter,
+          chosenArticle: choice,
+          correctArticle: item.answer,
+          targetCase: item.targetCase,
+          nounHint: item.nounHint,
+        })
+          .then(async (res) => {
+            setAiCaseResult(res);
+            if (res.isValid) {
+              await recordMistakeCorrect({
+                vocabId: null,
+                itemTitle,
+                mistakeType: 'Case',
+              });
+              setScore((prev) => ({
+                right: prev.right + 1,
+                total: prev.total,
+                streak: prev.streak + 1,
+              }));
+            }
+          })
+          .catch(() => {
+            // Keep offline feedback silently if AI fails
+          })
+          .finally(() => {
+            setCheckingAiCase(false);
+          });
+      }
     }
 
-    setScore((prev) => ({
-      right: prev.right + (isRight ? 1 : 0),
-      total: prev.total + 1,
-      streak: isRight ? prev.streak + 1 : 0,
-    }));
     await recordStudyActivity({
       reviewsCompleted: 1,
       minutesStudied: (score.total + 1) % 6 === 0 ? 1 : 0,
@@ -77,6 +127,8 @@ export const CaseBlitzDrill: React.FC = () => {
   const handleNext = () => {
     setPicked(null);
     setMistakeId(null);
+    setAiCaseResult(null);
+    setCheckingAiCase(false);
     setIndex((i) => i + 1);
   };
 
@@ -84,6 +136,8 @@ export const CaseBlitzDrill: React.FC = () => {
     setIndex(0);
     setPicked(null);
     setMistakeId(null);
+    setAiCaseResult(null);
+    setCheckingAiCase(false);
     setScore({ right: 0, total: 0, streak: 0 });
   };
 
@@ -222,11 +276,11 @@ export const CaseBlitzDrill: React.FC = () => {
               })}
             </div>
 
-            {/* Immediate 1-Line Rule Hint */}
+            {/* Immediate 1-Line Rule Hint + Optional AI Case Explanation */}
             {picked !== null && (
               <div
                 className={`mt-4 rounded-2xl border p-3.5 text-xs leading-relaxed ${
-                  picked === item.answer
+                  picked === item.answer || aiCaseResult?.isValid
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
                     : 'border-red-200 bg-red-50 text-red-950'
                 }`}
@@ -237,6 +291,11 @@ export const CaseBlitzDrill: React.FC = () => {
                       <>
                         <CheckCircle2 className="h-4 w-4 text-emerald-700" />
                         Richtig!
+                      </>
+                    ) : aiCaseResult?.isValid ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                        Valid alternative!
                       </>
                     ) : (
                       <>
@@ -252,7 +311,29 @@ export const CaseBlitzDrill: React.FC = () => {
                   </span>
                 </div>
                 <p className="mt-1.5 font-medium">{item.ruleHint}</p>
-                {picked !== item.answer && <InlineMistakeNote mistakeId={mistakeId} />}
+
+                {checkingAiCase && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    AI Tutor analyzing case rule...
+                  </p>
+                )}
+
+                {aiCaseResult && (
+                  <div className="mt-2 rounded-xl border border-blue-200 bg-white/90 px-3 py-2 text-slate-900">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-blue-700">
+                      <Sparkles className="h-3 w-3" />
+                      AI Grammar Tutor
+                    </span>
+                    <p className="mt-0.5 text-xs font-medium leading-relaxed">
+                      {aiCaseResult.shortExplanation}
+                    </p>
+                  </div>
+                )}
+
+                {picked !== item.answer && !aiCaseResult?.isValid && (
+                  <InlineMistakeNote mistakeId={mistakeId} />
+                )}
               </div>
             )}
           </div>
