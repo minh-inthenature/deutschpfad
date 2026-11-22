@@ -367,32 +367,35 @@ export async function generateAiWordPack(params: {
   level: 'A1' | 'A2' | 'B1';
   topic: string;
   count: 10 | 20;
-  existingWords: string[];
+  topicWords?: string[];
+  existingWordSet: Set<string>;
 }): Promise<CustomWordInput[]> {
-  const avoidList = params.existingWords.slice(0, 120).join(', ');
-  const prompt = `Generate exactly ${params.count} useful, high-accuracy German vocabulary entries for CEFR level ${params.level} on the theme "${params.topic}".
-${avoidList ? `Do NOT include any of these already-existing words: ${avoidList}.` : ''}
+  const requestCount = params.count + 4;
+  const avoidList = (params.topicWords ?? []).slice(0, 20).join(', ');
+  const prompt = `Generate exactly ${requestCount} useful, high-accuracy German NOUNS for CEFR level ${params.level} on the theme "${params.topic}".
+${avoidList ? `Avoid repeating these words already in this topic: ${avoidList}.` : ''}
 
-Return ONLY a valid JSON array of ${params.count} objects with this exact schema:
+Return ONLY a valid JSON array of ${requestCount} objects with this exact schema:
 [
   {
     "level": "${params.level}",
     "topic": "${params.topic}",
-    "article": "der" | "die" | "das" | "none",
-    "gender": "masc." | "fem." | "neut." | "",
-    "word": "German word (capitalized if noun, lowercase if verb/adj)",
-    "plural": "die + plural form for nouns, or '—' for verbs/adjectives",
+    "article": "der" | "die" | "das",
+    "gender": "masc." | "fem." | "neut.",
+    "word": "Capitalized German noun (singular)",
+    "plural": "die + plural form (e.g. 'die Tische')",
     "meaning": "Concise English translation",
-    "exampleDe": "Natural German example sentence using the word.",
+    "exampleDe": "Natural German example sentence using the noun.",
     "exampleEn": "Natural English translation of the example.",
-    "partOfSpeech": "noun" | "verb" | "adjective" | "phrase"
+    "partOfSpeech": "noun"
   }
 ]
 
-Rules:
-- For nouns, article MUST be 'der', 'die', or 'das' (never 'none'), gender must match ('masc.', 'fem.', 'neut.'), and plural must start with 'die ' (or '—' if uncountable).
-- For verbs, adjectives, and phrases, article MUST be 'none' and gender ''.
-- Keep every entry 100% grammatically accurate.`;
+STRICT RULES:
+- Return ONLY German nouns (NO verbs, NO adjectives, NO adverbs, NO phrases).
+- Every noun MUST be capitalized and have a valid definite article: strictly "der", "die", or "das" (never "none").
+- Every gender MUST match the article: "masc." for der, "fem." for die, "neut." for das.
+- Every plural MUST be a valid German plural starting with "die " (e.g. "die Bücher", or "die [singular]" if invariant/uncountable).`;
 
   const rawText = await callGeminiGenerateContent({
     prompt,
@@ -406,49 +409,58 @@ Rules:
     throw new Error('AI returned an invalid word pack format.');
   }
 
+  const seenLocal = new Set<string>(params.existingWordSet);
   const valid: CustomWordInput[] = [];
+
   for (const raw of parsed) {
     if (!raw || typeof raw !== 'object') continue;
     const obj = raw as Record<string, unknown>;
     const word = typeof obj.word === 'string' ? obj.word.trim() : '';
     const meaning = typeof obj.meaning === 'string' ? obj.meaning.trim() : '';
+    const artRaw = typeof obj.article === 'string' ? obj.article.trim().toLowerCase() : '';
+    const pluralRaw = typeof obj.plural === 'string' ? obj.plural.trim() : '';
+
+    // Strict noun validation: must have der/die/das article and a non-empty plural
     if (!word || !meaning) continue;
+    if (artRaw !== 'der' && artRaw !== 'die' && artRaw !== 'das') continue;
+    if (!pluralRaw || pluralRaw === '—' || pluralRaw === '-') continue;
 
-    const artRaw = typeof obj.article === 'string' ? obj.article.trim().toLowerCase() : 'none';
-    const article =
-      artRaw === 'der' || artRaw === 'die' || artRaw === 'das' ? artRaw : 'none';
+    // Instant local deduplication against all built-in + custom words
+    const normalizedKey = word.toLowerCase();
+    if (seenLocal.has(normalizedKey)) continue;
+    seenLocal.add(normalizedKey);
 
-    const posRaw = typeof obj.partOfSpeech === 'string' ? obj.partOfSpeech.trim().toLowerCase() : '';
-    const partOfSpeech =
-      posRaw === 'noun' || posRaw === 'verb' || posRaw === 'adjective' || posRaw === 'phrase'
-        ? posRaw
-        : article !== 'none'
-          ? 'noun'
-          : 'phrase';
+    const gender =
+      artRaw === 'der' ? 'masc.' : artRaw === 'die' ? 'fem.' : 'neut.';
+    const plural = pluralRaw.toLowerCase().startsWith('die ')
+      ? pluralRaw
+      : `die ${pluralRaw}`;
 
     valid.push({
       level: params.level,
       topic: typeof obj.topic === 'string' && obj.topic.trim() ? obj.topic.trim() : params.topic,
-      article,
-      gender: typeof obj.gender === 'string' ? obj.gender.trim() : '',
+      article: artRaw,
+      gender,
       word,
-      plural: typeof obj.plural === 'string' && obj.plural.trim() ? obj.plural.trim() : '—',
+      plural,
       meaning,
       exampleDe:
         typeof obj.exampleDe === 'string' && obj.exampleDe.trim()
           ? obj.exampleDe.trim()
-          : `${word}.`,
+          : `${artRaw.charAt(0).toUpperCase() + artRaw.slice(1)} ${word} ist hier.`,
       exampleEn:
         typeof obj.exampleEn === 'string' && obj.exampleEn.trim()
           ? obj.exampleEn.trim()
           : meaning,
-      partOfSpeech,
+      partOfSpeech: 'noun',
       isCustom: true,
     });
+
+    if (valid.length >= params.count) break;
   }
 
   if (valid.length === 0) {
-    throw new Error('No valid German vocabulary entries could be parsed.');
+    throw new Error('No new unique German nouns could be extracted.');
   }
 
   return valid;

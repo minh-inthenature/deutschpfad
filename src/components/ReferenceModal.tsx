@@ -34,6 +34,7 @@ import {
   type GeminiModelId,
 } from '../services/geminiTutor';
 import {
+  clearAllCustomWords,
   exportCustomWordsBackup,
   getStoredCustomWords,
   importCustomWordsBackup,
@@ -68,6 +69,7 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
   // Custom Deck Backup state
   const [customCount, setCustomCount] = useState(0);
   const [backupStatus, setBackupStatus] = useState<string | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
       setSelectedModel(getSavedGeminiModel());
       setCustomCount(getStoredCustomWords().length);
       setBackupStatus(null);
+      setConfirmClearAll(false);
       setConnStatus(
         savedKey
           ? { state: 'idle', message: 'Key saved in localStorage' }
@@ -84,6 +87,13 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
       );
     }
   }, [open]);
+
+  const handleConfirmClearAll = async () => {
+    const removed = await clearAllCustomWords();
+    setCustomCount(0);
+    setConfirmClearAll(false);
+    setBackupStatus(`Cleared ${removed} custom AI word${removed === 1 ? '' : 's'}.`);
+  };
 
   const handleExportBackup = async () => {
     try {
@@ -685,6 +695,38 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
                     className="hidden"
                   />
                 </div>
+
+                {customCount > 0 && (
+                  <div className="mt-2.5 border-t border-stone-100 pt-2.5">
+                    {!confirmClearAll ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClearAll(true)}
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50/70 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 active:scale-95"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Clear All Custom Words
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleConfirmClearAll()}
+                          className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-xs font-extrabold text-white active:scale-95"
+                        >
+                          Confirm Clear ({customCount})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClearAll(false)}
+                          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 active:scale-95"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {backupStatus && (
                   <p className="mt-2 text-[11px] font-semibold text-emerald-800">

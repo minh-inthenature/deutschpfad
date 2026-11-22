@@ -9,6 +9,7 @@ import {
   BookOpen,
   Info,
   Shuffle,
+  Trash2,
 } from 'lucide-react';
 import { db, recordStudyActivity, type CefrLevel, type VocabItem } from '../db/database';
 import {
@@ -19,6 +20,7 @@ import {
   speakGerman,
 } from '../utils/german';
 import { AiWordPackModal } from '../components/AiWordPackModal';
+import { deleteCustomWord } from '../services/customWords';
 import { hasGeminiKey } from '../services/geminiTutor';
 
 export const LearnView: React.FC = () => {
@@ -172,8 +174,8 @@ export const LearnView: React.FC = () => {
   return (
     <div className="flex flex-col px-4 pt-4 pb-6">
       {/* Header */}
-      <header className="mb-3 flex items-end justify-between">
-        <div>
+      <header className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0">
           <h1 className="font-editorial text-2xl font-bold tracking-tight text-slate-950">
             Learn New Words
           </h1>
@@ -181,10 +183,23 @@ export const LearnView: React.FC = () => {
             Swipe or tap through cards · Add words to your review deck
           </p>
         </div>
-        <div className="flex items-center gap-1 text-[10px] font-extrabold">
-          <span className="rounded bg-blue-700 px-1.5 py-0.5 text-white">der</span>
-          <span className="rounded bg-red-700 px-1.5 py-0.5 text-white">die</span>
-          <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-white">das</span>
+
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          {aiAvailable && (
+            <button
+              type="button"
+              onClick={() => setAiPackModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-extrabold text-blue-800 shadow-2xs transition active:scale-95"
+            >
+              <Sparkles className="h-3 w-3" />
+              ✨ + AI Words
+            </button>
+          )}
+          <div className="flex items-center gap-1 text-[10px] font-extrabold">
+            <span className="rounded bg-blue-700 px-1.5 py-0.5 text-white">der</span>
+            <span className="rounded bg-red-700 px-1.5 py-0.5 text-white">die</span>
+            <span className="rounded bg-emerald-700 px-1.5 py-0.5 text-white">das</span>
+          </div>
         </div>
       </header>
 
@@ -207,17 +222,7 @@ export const LearnView: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {aiAvailable && (
-            <button
-              type="button"
-              onClick={() => setAiPackModalOpen(true)}
-              className="inline-flex h-7 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 text-[11px] font-extrabold text-blue-800 shadow-2xs transition active:scale-95"
-            >
-              <Sparkles className="h-3 w-3" />
-              ✨ + AI Words
-            </button>
-          )}
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={handleShuffle}
@@ -227,7 +232,7 @@ export const LearnView: React.FC = () => {
           >
             <Shuffle className="h-3.5 w-3.5" />
           </button>
-          <span className="text-xs font-bold text-stone-500 tabular-nums">
+          <span className="whitespace-nowrap text-xs font-bold text-stone-500 tabular-nums">
             {sessionDeck.length > 0 ? `${safeIndex + 1} / ${sessionDeck.length}` : '0 words'}
           </span>
         </div>
@@ -308,9 +313,30 @@ export const LearnView: React.FC = () => {
                   {currentCard.level}
                 </span>
                 {currentCard.isCustom && (
-                  <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-extrabold text-blue-800">
-                    ✨ Custom
-                  </span>
+                  <>
+                    <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-extrabold text-blue-800">
+                      ✨ Custom
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void deleteCustomWord({
+                          word: currentCard.word ?? currentCard.german,
+                          article: currentCard.article,
+                          vocabId: currentCard.id,
+                        }).then(() => {
+                          setCardIndex((prev) =>
+                            sessionDeck.length <= 1 ? 0 : Math.min(prev, sessionDeck.length - 2),
+                          );
+                        });
+                      }}
+                      aria-label="Delete custom word"
+                      title="Delete custom word"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-stone-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 active:scale-90"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
                 )}
                 {currentCard.status !== 'new' && (
                   <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-extrabold text-emerald-800">

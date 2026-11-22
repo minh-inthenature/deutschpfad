@@ -29,11 +29,15 @@ import {
 } from '../services/dictionaryApi';
 import { DictionaryDetailSheet } from '../components/DictionaryDetailSheet';
 import { AiWordPackModal } from '../components/AiWordPackModal';
-import { addCustomWords, type CustomWordInput } from '../services/customWords';
+import {
+  addCustomWords,
+  deleteCustomWord,
+  type CustomWordInput,
+} from '../services/customWords';
 import { defineWordWithAI, hasGeminiKey } from '../services/geminiTutor';
 import { getArticleStyle, getLevelStyle, speakGerman } from '../utils/german';
 
-type DictFilter = 'all' | 'noun' | 'verb' | 'adjective' | 'favorites';
+type DictFilter = 'all' | 'noun' | 'verb' | 'adjective' | 'custom' | 'favorites';
 
 const UMLAUT_BAR = ['ä', 'ö', 'ü', 'ß'] as const;
 
@@ -224,9 +228,15 @@ export const DictionaryView: React.FC = () => {
     return list;
   }, [recentLookups, cachedById]);
 
-  // Browse list when search is empty and a category filter (Nouns / Verbs / Adjectives / Favorites) is active
+  // Browse list when search is empty and a category filter (Nouns / Verbs / Adjectives / Custom / Favorites) is active
   const browseCategoryList = useMemo(() => {
     if (filter === 'favorites') return favorites;
+    if (filter === 'custom') {
+      return (vocabEntries ?? [])
+        .filter((v) => v.isCustom)
+        .map((v) => vocabItemToDictionaryEntry(v))
+        .sort((a, b) => a.german.localeCompare(b.german, 'de'));
+    }
     if (filter === 'all') return [];
     const byKey = new Map<string, DictionaryEntry>();
     for (const c of cachedEntries ?? []) {
@@ -248,6 +258,11 @@ export const DictionaryView: React.FC = () => {
   const mergedSearchResults = useMemo(() => {
     const applyFilter = (e: DictionaryEntry) => {
       if (filter === 'favorites') return e.isFavorite;
+      if (filter === 'custom') {
+        return customWordKeys.has(
+          `${e.german.toLowerCase()}|${e.article.toLowerCase()}`,
+        );
+      }
       if (filter === 'all') return true;
       return e.partOfSpeech === filter;
     };
@@ -313,18 +328,43 @@ export const DictionaryView: React.FC = () => {
 
   const isSearchEmpty = query.trim().length === 0;
 
+  const handleDeleteCustomEntry = async (
+    e: React.MouseEvent,
+    entry: DictionaryEntry,
+  ) => {
+    e.stopPropagation();
+    await deleteCustomWord({
+      word: entry.german,
+      article: entry.article,
+    });
+    showToast(`Deleted "${entry.german}" from your custom deck.`);
+    if (query.trim()) {
+      void searchLocalDictionary(query.trim()).then(setLocalHits);
+    }
+  };
+
   const renderEntryRow = (
     entry: DictionaryEntry,
     matchedAlias?: string,
     isLive?: boolean,
   ) => {
     const art = getArticleStyle(entry.article);
+    const isCustomEntry = customWordKeys.has(
+      `${entry.german.toLowerCase()}|${entry.article.toLowerCase()}`,
+    );
     return (
-      <button
+      <div
         key={entry.id ?? `${entry.german}-${entry.partOfSpeech}`}
-        type="button"
+        role="button"
+        tabIndex={0}
         onClick={() => void handleOpenEntry(entry)}
-        className="flex w-full items-center justify-between gap-2 rounded-2xl border border-stone-200 bg-white px-3.5 py-3 text-left shadow-2xs transition active:scale-[0.985]"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            void handleOpenEntry(entry);
+          }
+        }}
+        className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-2xl border border-stone-200 bg-white px-3.5 py-3 text-left shadow-2xs transition active:scale-[0.985]"
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -343,9 +383,7 @@ export const DictionaryView: React.FC = () => {
             >
               {entry.level}
             </span>
-            {customWordKeys.has(
-              `${entry.german.toLowerCase()}|${entry.article.toLowerCase()}`,
-            ) && (
+            {isCustomEntry && (
               <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-extrabold text-blue-800">
                 ✨ Custom
               </span>
@@ -367,8 +405,21 @@ export const DictionaryView: React.FC = () => {
             </p>
           )}
         </div>
-        <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
-      </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isCustomEntry && (
+            <button
+              type="button"
+              onClick={(e) => void handleDeleteCustomEntry(e, entry)}
+              aria-label={`Delete ${entry.german}`}
+              title={`Delete ${entry.german}`}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-stone-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 active:scale-90"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <ChevronRight className="h-4 w-4 text-stone-400" />
+        </div>
+      </div>
     );
   };
 
@@ -464,6 +515,7 @@ export const DictionaryView: React.FC = () => {
               { id: 'noun', label: 'Nouns' },
               { id: 'verb', label: 'Verbs' },
               { id: 'adjective', label: 'Adjectives' },
+              { id: 'custom', label: `✨ Custom Only (${customWordKeys.size})` },
               { id: 'favorites', label: `★ Favorites (${favorites.length})` },
             ] as const
           ).map(({ id, label }) => (
@@ -546,7 +598,11 @@ export const DictionaryView: React.FC = () => {
               <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
                 <BookOpen className="mx-auto h-7 w-7 text-stone-300" />
                 <p className="mt-2 text-sm font-bold text-slate-700">
-                  {filter === 'favorites' ? 'No bookmarked words yet' : 'No cached entries yet'}
+                  {filter === 'favorites'
+                    ? 'No bookmarked words yet'
+                    : filter === 'custom'
+                      ? 'No custom AI words saved yet'
+                      : 'No cached entries yet'}
                 </p>
               </div>
             )}

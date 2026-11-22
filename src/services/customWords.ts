@@ -314,3 +314,80 @@ export async function importCustomWordsBackup(
     restoredProgress,
   };
 }
+
+/**
+ * Deletes a single custom word from `deutschpfad_custom_words` in localStorage,
+ * `db.vocab`, `db.dictionaryCache`, and `db.mistakeLogs`.
+ */
+export async function deleteCustomWord(params: {
+  word: string;
+  article?: string;
+  vocabId?: number;
+}): Promise<void> {
+  const targetWordLower = params.word.trim().toLowerCase();
+  const targetArticleLower = (params.article || '').trim().toLowerCase();
+
+  // 1. Remove from localStorage
+  const stored = getStoredCustomWords();
+  const filtered = stored.filter((item) => {
+    const wMatch = item.word.trim().toLowerCase() === targetWordLower;
+    if (!wMatch) return true;
+    if (targetArticleLower) {
+      return item.article.trim().toLowerCase() !== targetArticleLower;
+    }
+    return false;
+  });
+  saveStoredCustomWords(filtered);
+
+  // 2. Remove from db.vocab and db.mistakeLogs
+  const matchingVocab = await db.vocab
+    .filter((v) => {
+      if (!v.isCustom) return false;
+      const wMatch = (v.word ?? v.german).trim().toLowerCase() === targetWordLower;
+      if (!wMatch) return false;
+      return targetArticleLower
+        ? v.article.trim().toLowerCase() === targetArticleLower
+        : true;
+    })
+    .toArray();
+
+  const idsToDelete = new Set<number>();
+  if (params.vocabId !== undefined) idsToDelete.add(params.vocabId);
+  for (const v of matchingVocab) {
+    if (v.id !== undefined) idsToDelete.add(v.id);
+  }
+
+  for (const id of idsToDelete) {
+    await db.vocab.delete(id);
+    await db.mistakeLogs.where('vocabId').equals(id).delete();
+  }
+
+  // Also remove any mistakeLogs whose itemTitle references the deleted custom word
+  const withArticle =
+    targetArticleLower && targetArticleLower !== 'none'
+      ? `${targetArticleLower} ${targetWordLower}`
+      : targetWordLower;
+  await db.mistakeLogs
+    .filter((m) => {
+      const titleLower = m.itemTitle.trim().toLowerCase();
+      return titleLower === targetWordLower || titleLower === withArticle;
+    })
+    .delete();
+}
+
+/**
+ * Clears all custom AI words from `localStorage`, `db.vocab`, and related `db.mistakeLogs`.
+ */
+export async function clearAllCustomWords(): Promise<number> {
+  const customVocab = await db.vocab.filter((v) => Boolean(v.isCustom)).toArray();
+  const customIds = customVocab.map((v) => v.id).filter((id): id is number => id !== undefined);
+
+  for (const id of customIds) {
+    await db.vocab.delete(id);
+    await db.mistakeLogs.where('vocabId').equals(id).delete();
+  }
+
+  const storedCount = getStoredCustomWords().length;
+  saveStoredCustomWords([]);
+  return Math.max(customIds.length, storedCount);
+}

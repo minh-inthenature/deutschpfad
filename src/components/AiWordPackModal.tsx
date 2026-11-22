@@ -46,13 +46,21 @@ export const AiWordPackModal: React.FC<AiWordPackModalProps> = ({
 
     try {
       const existingVocab = await db.vocab.toArray();
-      const existingWords = existingVocab.map((v) => v.word ?? v.german);
+      const existingWordSet = new Set(
+        existingVocab.map((v) => (v.word ?? v.german).trim().toLowerCase()),
+      );
+      const topicLower = cleanTopic.toLowerCase();
+      const topicWords = existingVocab
+        .filter((v) => v.topic && v.topic.toLowerCase() === topicLower)
+        .map((v) => v.word ?? v.german)
+        .slice(0, 20);
 
       const generated = await generateAiWordPack({
         level,
         topic: cleanTopic,
         count,
-        existingWords,
+        topicWords,
+        existingWordSet,
       });
 
       const { added } = await addCustomWords(generated);
