@@ -81,7 +81,7 @@ export interface VocabItem {
 
 export type SeedVocabInput = Omit<
   VocabItem,
-  'id' | 'status' | 'easeFactor' | 'intervalDays' | 'nextReviewAt'
+  'status' | 'easeFactor' | 'intervalDays' | 'nextReviewAt'
 >;
 
 export interface McqQuestion {

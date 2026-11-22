@@ -4,6 +4,7 @@ import { VOCAB_A1 } from '../data/vocabA1';
 import { VOCAB_A2 } from '../data/vocabA2';
 import { VOCAB_B1 } from '../data/vocabB1';
 import { VOCAB_CORE_80 } from '../data/vocabCore80';
+import { VOCAB_EXPANSION_150 } from '../data/vocabExpansion150';
 import { ALL_MILESTONES } from '../data/milestones';
 
 // Deduplicate by exact German casing (preserves distinctions like 'sie' vs. 'Sie'),
@@ -11,7 +12,14 @@ import { ALL_MILESTONES } from '../data/milestones';
 function buildOrderedSeedVocab(): SeedVocabInput[] {
   const seen = new Set<string>();
   const combined: SeedVocabInput[] = [];
-  for (const item of [...VOCAB_A0, ...VOCAB_A1, ...VOCAB_A2, ...VOCAB_B1, ...VOCAB_CORE_80]) {
+  for (const item of [
+    ...VOCAB_A0,
+    ...VOCAB_A1,
+    ...VOCAB_A2,
+    ...VOCAB_B1,
+    ...VOCAB_CORE_80,
+    ...VOCAB_EXPANSION_150,
+  ]) {
     const key = item.german.trim();
     if (!seen.has(key)) {
       seen.add(key);
