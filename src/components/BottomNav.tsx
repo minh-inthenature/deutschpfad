@@ -52,10 +52,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 <Icon className={`h-[17px] w-[17px] ${isActive ? 'stroke-[2.3]' : 'stroke-[1.9]'}`} />
                 {id === 'vocab-check' && vocabBadgeCount > 0 && (
                   <span
-                    title={`${dueCount} due · ${activeMistakesCount} active mistakes`}
-                    className={`absolute -top-1 -right-0.5 flex h-4 min-w-[15px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white ring-2 ring-white ${
-                      activeMistakesCount > 0 ? 'bg-red-700' : 'bg-blue-700'
-                    }`}
+                    title={`${dueCount} due reviews · ${activeMistakesCount} active mistakes`}
+                    className="absolute -top-1 -right-0.5 flex h-4 min-w-[15px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-2 ring-white"
                   >
                     {vocabBadgeCount > 99 ? '99+' : vocabBadgeCount}
                   </span>

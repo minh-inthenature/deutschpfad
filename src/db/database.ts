@@ -60,7 +60,9 @@ export interface RecentLookup {
 export interface VocabItem {
   id?: number;
   german: string;
+  word?: string;
   article: GermanArticle;
+  gender?: string;
   plural: string;
   meaning: string;
   exampleDe: string;

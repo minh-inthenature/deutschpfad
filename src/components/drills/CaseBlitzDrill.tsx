@@ -23,6 +23,7 @@ export const CaseBlitzDrill: React.FC = () => {
   const [picked, setPicked] = useState<string | null>(null);
   const [mistakeId, setMistakeId] = useState<number | null>(null);
   const [score, setScore] = useState({ right: 0, total: 0, streak: 0 });
+  const [showNounGender, setShowNounGender] = useState(true);
 
   const pool = useMemo(() => {
     if (levelFilter === 'ALL') return CASE_DRILLS;
@@ -133,15 +134,31 @@ export const CaseBlitzDrill: React.FC = () => {
 
           <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span
                   className={`rounded-lg border px-2 py-0.5 text-[11px] font-extrabold ${getLevelStyle(item.level)}`}
                 >
                   {item.level}
                 </span>
-                <span className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-bold text-stone-600">
-                  {item.nounHint}
-                </span>
+
+                {showNounGender && item.nounHint && (
+                  <span className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] font-bold text-stone-700">
+                    {item.nounHint}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowNounGender((prev) => !prev)}
+                  aria-label={showNounGender ? 'Hide noun gender hint' : 'Show noun gender hint'}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold transition active:scale-95 ${
+                    showNounGender
+                      ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100/70'
+                      : 'border-stone-200 bg-stone-100 text-stone-500 hover:bg-stone-200/60'
+                  }`}
+                >
+                  {showNounGender ? 'Noun Gender: Visible' : 'Show Noun Gender'}
+                </button>
               </div>
 
               {picked !== null && (

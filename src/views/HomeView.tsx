@@ -79,27 +79,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const cefrProgress = cefrLevels.map((lvl) => {
       const lvlVocab = vList.filter((v) => v.level === lvl);
       const lvlMilestones = mList.filter((m) => m.level === lvl);
-      const vocabPoints = lvlVocab.reduce(
-        (acc, v) => acc + (v.status === 'mastered' ? 1 : v.status === 'learning' ? 0.5 : 0),
-        0,
-      );
-      const msPoints = lvlMilestones.filter((m) => m.completed).length * 4;
-      const totalPossible = lvlVocab.length + lvlMilestones.length * 4;
-      const pct =
-        totalPossible > 0 ? Math.round(((vocabPoints + msPoints) / totalPossible) * 100) : 0;
+      const vocabLearned = lvlVocab.filter((v) => v.status !== 'new').length;
+      const vocabTotal = lvlVocab.length;
+      const pct = vocabTotal > 0 ? Math.round((vocabLearned / vocabTotal) * 100) : 0;
       return {
         level: lvl,
         pct,
-        vocabLearned: lvlVocab.filter((v) => v.status !== 'new').length,
-        vocabTotal: lvlVocab.length,
+        vocabLearned,
+        vocabTotal,
         msDone: lvlMilestones.filter((m) => m.completed).length,
         msTotal: lvlMilestones.length,
       };
     });
 
-    const overallPct = Math.round(
-      cefrProgress.reduce((sum, c) => sum + c.pct, 0) / Math.max(1, cefrProgress.length),
-    );
+    const totalLearnedAll = vList.filter((v) => v.status !== 'new').length;
+    const totalVocabAll = vList.length;
+    const overallPct =
+      totalVocabAll > 0 ? Math.round((totalLearnedAll / totalVocabAll) * 100) : 0;
 
     const logMap = new Map((studyLogs ?? []).map((l) => [l.date, l]));
     const todayLog = logMap.get(todayStr) ?? {

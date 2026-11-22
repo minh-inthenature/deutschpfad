@@ -8,52 +8,73 @@ import {
   CheckCircle2,
   BookOpen,
   Info,
+  Shuffle,
 } from 'lucide-react';
 import { db, recordStudyActivity, type CefrLevel, type VocabItem } from '../db/database';
 import {
-  CEFR_ORDER,
   formatWordWithArticle,
   getArticleStyle,
   getLevelStyle,
+  shuffleArray,
   speakGerman,
 } from '../utils/german';
 
 export const LearnView: React.FC = () => {
-  const newWords = useLiveQuery(
-    () => db.vocab.where('status').equals('new').toArray(),
-    [],
-  );
+  const allVocab = useLiveQuery(() => db.vocab.toArray(), []);
+  const allVocabRef = useRef<VocabItem[]>([]);
+  if (allVocab && allVocab.length > 0) {
+    allVocabRef.current = allVocab;
+  }
 
   const [levelFilter, setLevelFilter] = useState<'ALL' | CefrLevel>('ALL');
   const [topicFilter, setTopicFilter] = useState<string>('ALL');
   const [cardIndex, setCardIndex] = useState(0);
+  const [shuffleSeed, setShuffleSeed] = useState(0);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [justAddedWord, setJustAddedWord] = useState<string | null>(null);
   const touchStartXRef = useRef<number | null>(null);
 
   const availableTopics = useMemo(() => {
-    const list = newWords ?? [];
+    const list = allVocabRef.current.length > 0 ? allVocabRef.current : (allVocab ?? []);
     const scoped = levelFilter === 'ALL' ? list : list.filter((w) => w.level === levelFilter);
     const set = new Set<string>();
     for (const w of scoped) {
       if (w.topic) set.add(w.topic);
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'de'));
-  }, [newWords, levelFilter]);
+  }, [allVocab, levelFilter]);
 
-  const deck = useMemo(() => {
-    const list = newWords ?? [];
-    return list
-      .filter((w) => {
-        if (levelFilter !== 'ALL' && w.level !== levelFilter) return false;
-        if (topicFilter !== 'ALL' && w.topic !== topicFilter) return false;
-        return true;
-      })
-      .sort((a, b) => CEFR_ORDER[a.level] - CEFR_ORDER[b.level] || (a.id ?? 0) - (b.id ?? 0));
-  }, [newWords, levelFilter, topicFilter]);
+  // Compute sessionDeck via useMemo whenever:
+  // - Learn screen mounts (initial load when allVocab length becomes > 0)
+  // - selectedLevel changes
+  // - selectedTopic changes
+  // - shuffleSeed increments
+  // Note: learnedIds is NOT in the useMemo dependencies so tapping Start Practicing
+  // or Skip/Next does NOT re-shuffle the deck mid-session!
+  const sessionDeck = useMemo(() => {
+    const list = allVocabRef.current.length > 0 ? allVocabRef.current : (allVocab ?? []);
+    if (list.length === 0) return [];
 
-  const safeIndex = deck.length > 0 ? Math.min(cardIndex, deck.length - 1) : 0;
-  const currentCard: VocabItem | undefined = deck[safeIndex];
+    const filtered = list.filter((w) => {
+      if (levelFilter !== 'ALL' && w.level !== levelFilter) return false;
+      if (topicFilter !== 'ALL' && w.topic !== topicFilter) return false;
+      return true;
+    });
+
+    // Partition into unlearned words (!learnedIds.has(w.id)) and already-learned words
+    const learnedIds = new Set(
+      list.filter((w) => w.status !== 'new' && w.id != null).map((w) => w.id!)
+    );
+
+    const unlearnedWords = filtered.filter((w) => !learnedIds.has(w.id!));
+    const learnedWords = filtered.filter((w) => learnedIds.has(w.id!));
+
+    return [...shuffleArray(unlearnedWords), ...shuffleArray(learnedWords)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [levelFilter, topicFilter, shuffleSeed, allVocab ? allVocab.length : 0]);
+
+  const safeIndex = sessionDeck.length > 0 ? Math.min(cardIndex, sessionDeck.length - 1) : 0;
+  const currentCard: VocabItem | undefined = sessionDeck[safeIndex];
 
   const handleSelectLevel = (lvl: 'ALL' | CefrLevel) => {
     setLevelFilter(lvl);
@@ -66,14 +87,19 @@ export const LearnView: React.FC = () => {
     setCardIndex(0);
   };
 
+  const handleShuffle = () => {
+    setShuffleSeed((prev) => prev + 1);
+    setCardIndex(0);
+  };
+
   const goPrev = () => {
-    if (deck.length <= 1) return;
-    setCardIndex((prev) => (prev <= 0 ? deck.length - 1 : prev - 1));
+    if (sessionDeck.length <= 1) return;
+    setCardIndex((prev) => (prev <= 0 ? sessionDeck.length - 1 : prev - 1));
   };
 
   const goNext = () => {
-    if (deck.length <= 1) return;
-    setCardIndex((prev) => (prev >= deck.length - 1 ? 0 : prev + 1));
+    if (sessionDeck.length <= 1) return;
+    setCardIndex((prev) => (prev >= sessionDeck.length - 1 ? 0 : prev + 1));
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -164,9 +190,20 @@ export const LearnView: React.FC = () => {
           ))}
         </div>
 
-        <span className="text-xs font-bold text-stone-500 tabular-nums">
-          {deck.length > 0 ? `${safeIndex + 1} / ${deck.length}` : '0 new'}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleShuffle}
+            aria-label="Shuffle deck"
+            title="Shuffle deck"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-600 shadow-2xs transition active:scale-90 hover:bg-stone-50"
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-xs font-bold text-stone-500 tabular-nums">
+            {sessionDeck.length > 0 ? `${safeIndex + 1} / ${sessionDeck.length}` : '0 words'}
+          </span>
+        </div>
       </div>
 
       {/* Topic Filter Pills */}
@@ -236,6 +273,11 @@ export const LearnView: React.FC = () => {
                 >
                   {currentCard.level}
                 </span>
+                {currentCard.status !== 'new' && (
+                  <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-extrabold text-emerald-800">
+                    Learned
+                  </span>
+                )}
               </div>
 
               <button
@@ -330,15 +372,24 @@ export const LearnView: React.FC = () => {
               onClick={() => void handleStartPracticing(currentCard)}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 py-4 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
             >
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              Start Practicing
+              {currentCard.status === 'new' ? (
+                <>
+                  <Sparkles className="h-4 w-4 text-amber-400" />
+                  Start Practicing
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  In Review Deck · Practice Again
+                </>
+              )}
             </button>
 
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={goPrev}
-                disabled={deck.length <= 1}
+                disabled={sessionDeck.length <= 1}
                 className="flex items-center justify-center gap-1.5 rounded-2xl border border-stone-200 bg-white py-3 text-xs font-bold text-slate-800 transition active:scale-[0.98] disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -347,7 +398,7 @@ export const LearnView: React.FC = () => {
               <button
                 type="button"
                 onClick={goNext}
-                disabled={deck.length <= 1}
+                disabled={sessionDeck.length <= 1}
                 className="flex items-center justify-center gap-1.5 rounded-2xl border border-stone-200 bg-white py-3 text-xs font-bold text-slate-800 transition active:scale-[0.98] disabled:opacity-40"
               >
                 Skip / Next

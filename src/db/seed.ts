@@ -3,6 +3,7 @@ import { VOCAB_A0 } from '../data/vocabA0';
 import { VOCAB_A1 } from '../data/vocabA1';
 import { VOCAB_A2 } from '../data/vocabA2';
 import { VOCAB_B1 } from '../data/vocabB1';
+import { VOCAB_CORE_80 } from '../data/vocabCore80';
 import { ALL_MILESTONES } from '../data/milestones';
 
 // Deduplicate by exact German casing (preserves distinctions like 'sie' vs. 'Sie'),
@@ -10,11 +11,15 @@ import { ALL_MILESTONES } from '../data/milestones';
 function buildOrderedSeedVocab(): SeedVocabInput[] {
   const seen = new Set<string>();
   const combined: SeedVocabInput[] = [];
-  for (const item of [...VOCAB_A0, ...VOCAB_A1, ...VOCAB_A2, ...VOCAB_B1]) {
+  for (const item of [...VOCAB_A0, ...VOCAB_A1, ...VOCAB_A2, ...VOCAB_B1, ...VOCAB_CORE_80]) {
     const key = item.german.trim();
     if (!seen.has(key)) {
       seen.add(key);
-      combined.push(item);
+      combined.push({
+        ...item,
+        word: item.word ?? item.german,
+        gender: item.gender ?? item.article,
+      });
     }
   }
   return combined;
@@ -62,10 +67,14 @@ export function seedDatabaseIfNeeded(): Promise<void> {
               verbForms: seed.verbForms,
               adjectiveForms: seed.adjectiveForms,
               grammarNote: seed.grammarNote,
+              word: seed.word ?? seed.german,
+              gender: seed.gender ?? seed.article,
             });
           } else {
             toAddVocab.push({
               ...seed,
+              word: seed.word ?? seed.german,
+              gender: seed.gender ?? seed.article,
               status: 'new',
               easeFactor: 2.5,
               intervalDays: 0,
