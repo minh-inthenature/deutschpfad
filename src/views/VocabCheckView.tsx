@@ -78,6 +78,10 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
   onClearInitialLevel,
 }) => {
   const vocab = useLiveQuery(() => db.vocab.toArray(), []);
+  const activeMistakes = useLiveQuery(
+    () => db.mistakeLogs.where('status').equals('active').toArray(),
+    [],
+  );
   const [mode, setMode] = useState<DrillMode>('flip');
   const [levelFilter, setLevelFilter] = useState<'ALL' | CefrLevel>(
     initialLevel ?? 'ALL',
@@ -103,6 +107,11 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
     id: number;
     label: string;
   } | null>(null);
+  const [pendingFailurePrompt, setPendingFailurePrompt] = useState<{
+    card: VocabItem;
+    rating: 'again' | 'hard';
+  } | null>(null);
+  const autoAdvanceTimerRef = useRef<number | null>(null);
 
   // Article Tap state
   const [articlePick, setArticlePick] = useState<GermanArticle | null>(null);
@@ -124,22 +133,46 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
     const all = (vocab ?? [])
       .filter((v) => levelFilter === 'ALL' || v.level === levelFilter)
       .sort((a, b) => CEFR_ORDER[a.level] - CEFR_ORDER[b.level] || (a.id ?? 0) - (b.id ?? 0));
+
+    const priorityVocabIds = new Set(
+      (activeMistakes ?? [])
+        .filter((m) => {
+          if (m.vocabId === null) return false;
+          if (mode === 'article') {
+            return m.mistakeType === 'Article' || m.mistakeType === 'Both';
+          }
+          if (mode === 'flip' || mode === 'spell') {
+            return m.mistakeType === 'Meaning' || m.mistakeType === 'Both';
+          }
+          return false;
+        })
+        .map((m) => m.vocabId!),
+    );
+
+    const prioritize = (items: VocabItem[]) => {
+      if (priorityVocabIds.size === 0) return items;
+      return [
+        ...items.filter((v) => v.id !== undefined && priorityVocabIds.has(v.id)),
+        ...items.filter((v) => v.id === undefined || !priorityVocabIds.has(v.id)),
+      ];
+    };
+
     const due = all
       .filter((v) => v.status !== 'new' && v.nextReviewAt <= now)
       .sort((a, b) => a.nextReviewAt - b.nextReviewAt || CEFR_ORDER[a.level] - CEFR_ORDER[b.level]);
 
     if (mode === 'article') {
       const dueNouns = due.filter((v) => v.article !== 'none');
-      if (dueNouns.length > 0) return { items: dueNouns, isFallback: false };
-      const fallbackNouns = all.filter((v) => v.article !== 'none').slice(0, 12);
+      if (dueNouns.length > 0) return { items: prioritize(dueNouns), isFallback: false };
+      const fallbackNouns = prioritize(all.filter((v) => v.article !== 'none')).slice(0, 12);
       return { items: fallbackNouns, isFallback: true };
     }
 
-    if (due.length > 0) return { items: due, isFallback: false };
-    const learningPool = all.filter((v) => v.status === 'learning').slice(0, 10);
+    if (due.length > 0) return { items: prioritize(due), isFallback: false };
+    const learningPool = prioritize(all.filter((v) => v.status === 'learning')).slice(0, 10);
     if (learningPool.length > 0) return { items: learningPool, isFallback: true };
-    return { items: all.slice(0, 10), isFallback: true };
-  }, [vocab, mode, levelFilter, now]);
+    return { items: prioritize(all).slice(0, 10), isFallback: true };
+  }, [vocab, activeMistakes, mode, levelFilter, now]);
 
   const activeDeck = useMemo(() => {
     if (!vocab) return [];
@@ -153,6 +186,11 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
   const currentCard: VocabItem | undefined = activeDeck[index];
 
   const resetPerCardState = () => {
+    if (autoAdvanceTimerRef.current !== null) {
+      window.clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    setPendingFailurePrompt(null);
     setFlipped(false);
     setArticlePick(null);
     setArticleMistakeId(null);
@@ -189,34 +227,43 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
     resetPerCardState();
   };
 
+  const logFlipMistakeReason = async (
+    card: VocabItem,
+    rating: 'again' | 'hard',
+    reason: 'Article' | 'Meaning' | 'Both',
+  ) => {
+    if (autoAdvanceTimerRef.current !== null) {
+      window.clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    setPendingFailurePrompt(null);
+    if (!card.id) {
+      advanceCard();
+      return;
+    }
+    const itemTitle = formatWordWithArticle(card.article, card.german);
+    const mId = await logMistake({
+      vocabId: card.id,
+      itemTitle,
+      mistakeType: reason,
+      lastWrongAnswer: `${rating === 'again' ? 'Again' : 'Hard'} (forgot ${reason.toLowerCase()})`,
+      correctAnswer: `${itemTitle} — ${card.meaning}`,
+    });
+    if (rating === 'again') {
+      setLastAgainMistake({ id: mId, label: itemTitle });
+    }
+    advanceCard();
+  };
+
   // Mode 1: Recall Flip SM-2 rating
   const handleFlipRate = async (rating: ReviewRating) => {
-    if (!currentCard?.id) return;
+    if (!currentCard?.id || pendingFailurePrompt) return;
     ensurePinned();
     const wasNew = currentCard.status === 'new';
     const sm2 = computeSm2Update(currentCard, rating);
     const itemTitle = formatWordWithArticle(currentCard.article, currentCard.german);
 
     await db.vocab.update(currentCard.id, sm2);
-    if (rating === 'again') {
-      const mId = await logMistake({
-        vocabId: currentCard.id,
-        itemTitle,
-        mistakeType: 'Spelling',
-        lastWrongAnswer: 'Again (forgot)',
-        correctAnswer: `${itemTitle} — ${currentCard.meaning}`,
-      });
-      setLastAgainMistake({ id: mId, label: itemTitle });
-    } else {
-      setLastAgainMistake(null);
-      if (rating === 'good' || rating === 'easy') {
-        await recordMistakeCorrect({
-          vocabId: currentCard.id,
-          itemTitle,
-          mistakeType: 'Spelling',
-        });
-      }
-    }
 
     await recordStudyActivity({
       reviewsCompleted: 1,
@@ -226,6 +273,50 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
 
     setSessionReviews((n) => n + 1);
     if (rating !== 'again') setSessionCorrect((n) => n + 1);
+
+    if (rating === 'again' || rating === 'hard') {
+      if (currentCard.article !== 'none') {
+        const cardSnapshot = currentCard;
+        setPendingFailurePrompt({ card: cardSnapshot, rating });
+        autoAdvanceTimerRef.current = window.setTimeout(() => {
+          autoAdvanceTimerRef.current = null;
+          void logFlipMistakeReason(cardSnapshot, rating, 'Meaning');
+        }, 1500);
+        return;
+      }
+
+      if (rating === 'again') {
+        const mId = await logMistake({
+          vocabId: currentCard.id,
+          itemTitle,
+          mistakeType: 'Meaning',
+          lastWrongAnswer: 'Again (forgot meaning)',
+          correctAnswer: `${itemTitle} — ${currentCard.meaning}`,
+        });
+        setLastAgainMistake({ id: mId, label: itemTitle });
+      }
+      advanceCard();
+      return;
+    }
+
+    setLastAgainMistake(null);
+    if (rating === 'good' || rating === 'easy') {
+      await recordMistakeCorrect({
+        vocabId: currentCard.id,
+        itemTitle,
+        mistakeType: 'Meaning',
+      });
+      await recordMistakeCorrect({
+        vocabId: currentCard.id,
+        itemTitle,
+        mistakeType: 'Article',
+      });
+      await recordMistakeCorrect({
+        vocabId: currentCard.id,
+        itemTitle,
+        mistakeType: 'Both',
+      });
+    }
     advanceCard();
   };
 
@@ -628,6 +719,38 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
             </button>
           ) : (
             <div className="space-y-2">
+              {pendingFailurePrompt && (
+                <div className="rounded-2xl border border-stone-200 bg-white p-2.5 shadow-2xs">
+                  <p className="mb-1.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
+                    What did you forget? (auto-advancing…)
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(
+                      [
+                        { reason: 'Article', label: 'Forgot der/die/das' },
+                        { reason: 'Meaning', label: 'Forgot Meaning' },
+                        { reason: 'Both', label: 'Forgot Both' },
+                      ] as const
+                    ).map(({ reason, label }) => (
+                      <button
+                        key={reason}
+                        type="button"
+                        onClick={() =>
+                          void logFlipMistakeReason(
+                            pendingFailurePrompt.card,
+                            pendingFailurePrompt.rating,
+                            reason,
+                          )
+                        }
+                        className="rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-[11px] font-extrabold text-red-800 transition active:scale-95"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <p className="text-center text-[11px] font-semibold text-stone-500">
                 Rate recall to schedule next SM-2 review
               </p>

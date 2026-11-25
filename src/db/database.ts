@@ -12,7 +12,14 @@ export type DictPartOfSpeech =
   | 'preposition'
   | 'adverb'
   | 'phrase';
-export type MistakeType = 'Article' | 'Plural' | 'Spelling' | 'Case' | 'Satzbau';
+export type MistakeType =
+  | 'Article'
+  | 'Meaning'
+  | 'Both'
+  | 'Plural'
+  | 'Spelling'
+  | 'Case'
+  | 'Satzbau';
 export type MistakeStatus = 'active' | 'resolved';
 
 export interface VerbConjugation {

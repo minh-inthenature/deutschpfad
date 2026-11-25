@@ -43,6 +43,8 @@ interface MistakeNotebookModalProps {
 const CATEGORIES: ('All' | MistakeType)[] = [
   'All',
   'Article',
+  'Meaning',
+  'Both',
   'Plural',
   'Spelling',
   'Case',
@@ -55,6 +57,10 @@ function typeBadgeClass(type: MistakeType): string {
   switch (type) {
     case 'Article':
       return 'bg-blue-50 text-blue-800 border-blue-200';
+    case 'Meaning':
+      return 'bg-teal-50 text-teal-800 border-teal-200';
+    case 'Both':
+      return 'bg-rose-50 text-rose-800 border-rose-200';
     case 'Plural':
       return 'bg-purple-50 text-purple-800 border-purple-200';
     case 'Spelling':

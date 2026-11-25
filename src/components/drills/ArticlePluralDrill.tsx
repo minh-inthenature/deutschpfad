@@ -33,6 +33,15 @@ const UMLAUT_KEYS = ['ä', 'ö', 'ü', 'ß', 'Ä', 'Ö', 'Ü'] as const;
 
 export const ArticlePluralDrill: React.FC = () => {
   const vocab = useLiveQuery(() => db.vocab.toArray(), []);
+  const activeArticleMistakes = useLiveQuery(
+    () =>
+      db.mistakeLogs
+        .where('status')
+        .equals('active')
+        .filter((m) => m.mistakeType === 'Article' || m.mistakeType === 'Both')
+        .toArray(),
+    [],
+  );
 
   const [pinnedIds, setPinnedIds] = useState<number[] | null>(null);
   const [index, setIndex] = useState(0);
@@ -55,6 +64,19 @@ export const ArticlePluralDrill: React.FC = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const nounPool = useMemo(() => {
+    const priorityIds = new Set(
+      (activeArticleMistakes ?? [])
+        .map((m) => m.vocabId)
+        .filter((id): id is number => id !== null),
+    );
+    const prioritize = (items: VocabItem[]) =>
+      priorityIds.size === 0
+        ? items
+        : [
+            ...items.filter((v) => v.id !== undefined && priorityIds.has(v.id)),
+            ...items.filter((v) => v.id === undefined || !priorityIds.has(v.id)),
+          ];
+
     const all = (vocab ?? [])
       .filter((v) => v.article !== 'none' && v.plural && v.plural !== '—')
       .sort((a, b) => CEFR_ORDER[a.level] - CEFR_ORDER[b.level] || (a.id ?? 0) - (b.id ?? 0));
@@ -62,11 +84,11 @@ export const ArticlePluralDrill: React.FC = () => {
     const due = all
       .filter((v) => v.status !== 'new' && v.nextReviewAt <= now)
       .sort((a, b) => a.nextReviewAt - b.nextReviewAt);
-    if (due.length > 0) return due.slice(0, 12);
+    if (due.length > 0) return prioritize(due).slice(0, 12);
     const learning = all.filter((v) => v.status === 'learning');
-    if (learning.length >= 5) return learning.slice(0, 12);
-    return all.slice(0, 12);
-  }, [vocab]);
+    if (learning.length >= 5) return prioritize(learning).slice(0, 12);
+    return prioritize(all).slice(0, 12);
+  }, [vocab, activeArticleMistakes]);
 
   const deck = useMemo(() => {
     if (!vocab) return [];
