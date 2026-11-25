@@ -62,18 +62,28 @@ export const MilestonesView: React.FC<MilestonesViewProps> = ({
 
   return (
     <div className="space-y-5 px-4 pt-4 pb-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-start justify-between gap-2">
         <div>
           <h1 className="font-editorial text-2xl font-bold tracking-tight text-slate-950">
-            Skill Tree
+            Grammar
           </h1>
           <p className="text-xs text-stone-500">
             Score ≥{PASS_THRESHOLD}% on a Mastery Test to unlock the next node
           </p>
         </div>
-        <span className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-900">
-          {completedCount}/{milestones?.length ?? 21}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onOpenReference}
+            className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-extrabold text-blue-800 shadow-2xs transition active:scale-95"
+          >
+            <BookMarked className="h-3.5 w-3.5" />
+            Reference
+          </button>
+          <span className="rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-extrabold text-slate-900">
+            {completedCount}/{milestones?.length ?? 21}
+          </span>
+        </div>
       </header>
 
       {/* Vertical A1 → A2 → B1 Skill Tree */}

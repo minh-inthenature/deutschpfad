@@ -6,7 +6,6 @@ import {
   BookOpen,
   ChevronRight,
   Flag,
-  BookMarked,
   AlertCircle,
   Volume2,
   StickyNote,
@@ -35,7 +34,7 @@ import {
 interface HomeViewProps {
   onNavigate: (tab: TabId) => void;
   onOpenMilestone: (code: string) => void;
-  onOpenReference: () => void;
+  onOpenReference?: () => void;
   onOpenMistakes: (autoStartDrill?: boolean) => void;
   onOpenSettings: () => void;
   onOpenLevelModal: (level: CefrLevel) => void;
@@ -53,7 +52,6 @@ function hashDateKey(dateStr: string): number {
 export const HomeView: React.FC<HomeViewProps> = ({
   onNavigate,
   onOpenMilestone,
-  onOpenReference,
   onOpenMistakes,
   onOpenSettings,
   onOpenLevelModal,
@@ -298,18 +296,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             />
             {stats.streak}d
           </span>
-          <button
-            type="button"
-            onClick={onOpenReference}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-extrabold shadow-2xs transition active:scale-95 ${
-              isSpider
-                ? 'border-[#3A0D11] bg-[#161618] text-[#EF4444]'
-                : 'border-blue-200 bg-blue-50 text-blue-800'
-            }`}
-          >
-            <BookMarked className="h-3.5 w-3.5" />
-            Reference
-          </button>
           <ThemeToggleButton />
           <button
             type="button"
