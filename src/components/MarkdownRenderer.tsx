@@ -136,15 +136,15 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown }) 
       elements.push(
         <div
           key={key++}
-          className="my-3 overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-xs"
+          className="sv-md-table-wrap my-3 w-full max-w-full overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xs"
         >
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
+          <table className="sv-md-table w-full table-fixed border-collapse text-left text-xs sm:text-sm">
+            <thead className="sv-md-thead">
               <tr className="border-b border-stone-200 bg-stone-100/80">
                 {headers.map((header, hIdx) => (
                   <th
                     key={hIdx}
-                    className="px-3 py-2.5 font-extrabold text-slate-800 whitespace-nowrap"
+                    className="break-words px-2.5 py-2 align-top font-extrabold leading-tight text-slate-800"
                   >
                     {renderInline(header)}
                   </th>
@@ -153,9 +153,15 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ markdown }) 
             </thead>
             <tbody className="divide-y divide-stone-100">
               {rows.map((row, rIdx) => (
-                <tr key={rIdx} className={rIdx % 2 === 1 ? 'bg-stone-50/60' : 'bg-white'}>
+                <tr
+                  key={rIdx}
+                  className={`sv-md-row ${rIdx % 2 === 1 ? 'bg-stone-50/60' : 'bg-white'}`}
+                >
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="px-3 py-2.5 text-slate-800 align-top">
+                    <td
+                      key={cIdx}
+                      className="break-words px-2.5 py-2 align-top leading-snug text-slate-800"
+                    >
                       {renderInline(cell)}
                     </td>
                   ))}

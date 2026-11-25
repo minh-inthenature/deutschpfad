@@ -4,13 +4,13 @@ import {
   Lock,
   CheckCircle2,
   ChevronRight,
-  X,
   BookOpen,
   Play,
   Trophy,
   RotateCcw,
   XCircle,
   BookMarked,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   db,
@@ -312,17 +312,20 @@ const MilestoneSheet: React.FC<MilestoneSheetProps> = ({
       (question.type === 'reorder' && reorderPicked.length === question.words.length));
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 backdrop-blur-[2px]"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[92dvh] w-full max-w-md flex-col rounded-t-3xl bg-paper shadow-2xl pb-safe"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Sheet Handle & Header */}
-        <div className="shrink-0 border-b border-stone-200 bg-white px-5 pt-3 pb-4 rounded-t-3xl">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
+    <div className="fixed inset-0 z-50 flex justify-center bg-[#f1efe9] sv-fullscreen-bg">
+      <div className="flex h-full w-full max-w-md flex-col bg-paper pb-safe">
+        {/* Sticky Full-Screen Header */}
+        <div className="shrink-0 border-b border-stone-200 bg-white px-4 pt-safe pb-3">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Back to Grammar"
+            className="mb-2 inline-flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-[11px] font-extrabold text-slate-800 active:scale-95"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Grammar
+          </button>
+
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -335,23 +338,14 @@ const MilestoneSheet: React.FC<MilestoneSheetProps> = ({
                   <span className="text-[11px] font-bold text-emerald-700">Mastered</span>
                 )}
               </div>
-              <h2 className="font-editorial mt-1 truncate text-lg font-bold text-slate-950">
+              <h2 className="font-editorial mt-1 text-lg font-bold leading-snug text-slate-950">
                 {milestone.title}
               </h2>
             </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close milestone sheet"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-slate-700 active:scale-90"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
 
           {/* Segmented Sheet Tabs */}
-          <div className="mt-3.5 grid grid-cols-2 gap-1 rounded-2xl border border-stone-200 bg-stone-100 p-1">
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl border border-stone-200 bg-stone-100 p-1">
             <button
               type="button"
               onClick={() => setSheetTab('rules')}
@@ -379,8 +373,8 @@ const MilestoneSheet: React.FC<MilestoneSheetProps> = ({
           </div>
         </div>
 
-        {/* Scrollable Sheet Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        {/* Scrollable Full-Height Body */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
           {/* GRAMMAR RULES TAB */}
           {sheetTab === 'rules' && (
             <div className="space-y-4 pb-3">

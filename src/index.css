@@ -152,6 +152,47 @@ html[data-theme="spiderverse"] .rounded-t-3xl > .bg-white {
   border-color: #2e0b0e !important;
 }
 
+/* Full-screen Grammar lesson background in Spider-Verse Dark */
+html[data-theme="spiderverse"] .sv-fullscreen-bg {
+  background-color: #050505 !important;
+}
+
+/* Grammar Markdown Tables: alternating dark matte rows */
+html[data-theme="spiderverse"] .sv-md-table-wrap {
+  background-color: #111113 !important;
+  border: 1px solid #2e0b0e !important;
+  box-shadow: none !important;
+}
+html[data-theme="spiderverse"] .sv-md-thead tr {
+  background-color: #1f1214 !important;
+  border-bottom: 1px solid #2e0b0e !important;
+}
+html[data-theme="spiderverse"] .sv-md-thead th {
+  color: #f5f5f5 !important;
+}
+html[data-theme="spiderverse"] .sv-md-table tbody tr.sv-md-row:nth-child(odd) {
+  background-color: #111113 !important;
+}
+html[data-theme="spiderverse"] .sv-md-table tbody tr.sv-md-row:nth-child(even) {
+  background-color: #18181b !important;
+}
+html[data-theme="spiderverse"] .sv-md-table tbody td {
+  color: #d4d4d8 !important;
+  border-color: #27272a !important;
+}
+html[data-theme="spiderverse"] .sv-md-table tbody td strong {
+  color: #f5f5f5 !important;
+}
+html[data-theme="spiderverse"] .sv-md-table tbody td em {
+  color: #d4d4d8 !important;
+}
+html[data-theme="spiderverse"] .sv-md-table code,
+html[data-theme="spiderverse"] .sv-md-table-wrap code {
+  background-color: #111113 !important;
+  border: 1px solid #27272a !important;
+  color: #f5f5f5 !important;
+}
+
 /* Lightweight 160ms GPU-accelerated tab view transition */
 @keyframes tab-view-enter {
   from {
