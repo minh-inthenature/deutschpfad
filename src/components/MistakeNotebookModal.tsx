@@ -23,8 +23,16 @@ import {
   type MistakeLog,
   type MistakeStatus,
   type MistakeType,
+  type VocabItem,
 } from '../db/database';
 import { speakGerman } from '../utils/german';
+import {
+  AiEnrichIconButton,
+  EditCardIconButton,
+  type EnrichButtonState,
+} from './CardIconButtons';
+import { CardEditSheet } from './CardEditSheet';
+import { enrichVocabCard } from '../services/cardEnrichService';
 
 interface MistakeNotebookModalProps {
   open: boolean;
@@ -72,6 +80,8 @@ export const MistakeNotebookModal: React.FC<MistakeNotebookModalProps> = ({
   const [statusView, setStatusView] = useState<MistakeStatus>('active');
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [editingVocabCard, setEditingVocabCard] = useState<VocabItem | null>(null);
+  const [mistakeEnrichState, setMistakeEnrichState] = useState<EnrichButtonState>('idle');
 
   // Targeted Weak-Items Drill state
   const [drilling, setDrilling] = useState(false);
@@ -491,9 +501,47 @@ export const MistakeNotebookModal: React.FC<MistakeNotebookModalProps> = ({
                     >
                       {currentDrillItem.mistakeType}
                     </span>
-                    <span className="text-[11px] font-bold text-stone-500">
-                      Streak: {currentDrillItem.consecutiveCorrect}/2 to resolve
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-stone-500">
+                        Streak: {currentDrillItem.consecutiveCorrect}/2
+                      </span>
+                      {currentDrillItem.vocabId !== null && (
+                        <>
+                          <AiEnrichIconButton
+                            state={mistakeEnrichState}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const vid = currentDrillItem.vocabId;
+                              if (!vid) return;
+                              setMistakeEnrichState('loading');
+                              void db.vocab
+                                .get(vid)
+                                .then((v) =>
+                                  v
+                                    ? enrichVocabCard(v, { forceRefresh: Boolean(v.enriched) })
+                                    : null,
+                                )
+                                .then(() => {
+                                  setMistakeEnrichState('success');
+                                  setTimeout(() => setMistakeEnrichState('idle'), 1200);
+                                })
+                                .catch(() => setMistakeEnrichState('idle'));
+                            }}
+                          />
+                          <EditCardIconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!currentDrillItem.vocabId) return;
+                              void db.vocab
+                                .get(currentDrillItem.vocabId)
+                                .then((v) => {
+                                  if (v) setEditingVocabCard(v);
+                                });
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   <div className="my-5 text-center">
@@ -662,6 +710,12 @@ export const MistakeNotebookModal: React.FC<MistakeNotebookModalProps> = ({
             ))}
         </div>
       </div>
+
+      <CardEditSheet
+        open={Boolean(editingVocabCard)}
+        card={editingVocabCard}
+        onClose={() => setEditingVocabCard(null)}
+      />
     </div>
   );
 };

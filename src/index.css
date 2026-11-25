@@ -48,3 +48,382 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ==================== SPIDER-VERSE COMIC ANIMATIONS ("ON TWOS" 24FPS) ==================== */
+@keyframes spiderverse-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.84) rotate(-4deg);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.05) rotate(1.5deg);
+  }
+  50% {
+    transform: translate(-3px, -2px) scale(0.98) rotate(-1deg);
+  }
+  75% {
+    transform: translate(2px, 1px) scale(1.01) rotate(0.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes spiderverse-rgb-jitter {
+  0% {
+    text-shadow: -3px 2px 0px #00f0ff, 3px -2px 0px #ff0055;
+  }
+  33% {
+    text-shadow: 4px -2px 0px #00f0ff, -4px 2px 0px #ff0055;
+  }
+  66% {
+    text-shadow: -2px -2px 0px #ff0055, 2px 2px 0px #00f0ff;
+  }
+  100% {
+    text-shadow: -2px 1.5px 0px #00f0ff, 2px -1.5px 0px #ff0055;
+  }
+}
+
+.spiderverse-enter {
+  animation: spiderverse-pop 0.34s steps(6, end) both;
+}
+
+.spiderverse-glitch-text {
+  text-shadow: -2px 1.5px 0px #00f0ff, 2px -1.5px 0px #ff0055;
+  animation: spiderverse-rgb-jitter 0.28s steps(3, end) 1;
+}
+
+.spiderverse-halftone-bg {
+  background-color: #0d0e1c;
+  background-image:
+    radial-gradient(rgba(0, 240, 255, 0.16) 1.5px, transparent 1.6px),
+    radial-gradient(rgba(255, 0, 85, 0.14) 1.5px, transparent 1.6px),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.03) 0px,
+      rgba(255, 255, 255, 0.03) 2px,
+      transparent 2px,
+      transparent 10px
+    );
+  background-size: 14px 14px, 14px 14px, auto;
+  background-position: 0 0, 7px 7px, 0 0;
+}
+
+.spiderverse-panel-clip {
+  clip-path: polygon(0 4%, 100% 0%, 98% 96%, 2% 100%);
+}
+
+/* ==================== THEME MODE 2: SPIDER-VERSE DARK (MILES MORALES PITCH-BLACK & DEEP CRIMSON) ==================== */
+html[data-theme="spiderverse"] body,
+html[data-theme="spiderverse"] #root,
+html[data-theme="spiderverse"] .bg-paper,
+html[data-theme="spiderverse"] .bg-\[\#f1efe9\],
+html[data-theme="spiderverse"] .bg-\[\#faf9f6\] {
+  background-color: #050505 !important;
+  color: #f5f5f5;
+}
+
+/* Subtle, low-opacity deep crimson spiderweb line pattern across app background */
+html[data-theme="spiderverse"] .bg-paper {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%233A080C' stroke-opacity='0.25' stroke-width='1'%3E%3Cpath d='M0 0L120 120M120 0L0 120M60 0V120M0 60H120'/%3E%3Cpolygon points='60,36 77,43 84,60 77,77 60,84 43,77 36,60 43,43'/%3E%3Cpolygon points='60,12 94,26 108,60 94,94 60,108 26,94 12,60 26,26'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 120px 120px;
+}
+
+/* Matte Charcoal Black Cards & Containers with thin dark-red border */
+html[data-theme="spiderverse"] .rounded-3xl.bg-white,
+html[data-theme="spiderverse"] .rounded-2xl.bg-white,
+html[data-theme="spiderverse"] header.bg-white {
+  background-color: #111113 !important;
+  border: 1px solid #2e0b0e !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* Bottom Sheets & Modals */
+html[data-theme="spiderverse"] .rounded-t-3xl {
+  background-color: #111113 !important;
+  border-top: 1px solid #3a0d11 !important;
+  color: #f5f5f5;
+}
+
+html[data-theme="spiderverse"] .rounded-t-3xl > .bg-white {
+  background-color: #111113 !important;
+  border-color: #2e0b0e !important;
+}
+
+/* Lightweight 160ms GPU-accelerated tab view transition */
+@keyframes tab-view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-view-enter {
+  animation: tab-view-enter 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Inset / Secondary Surfaces (fixes Example Sentence box & Dictionary empty states) */
+html[data-theme="spiderverse"] .bg-stone-50,
+html[data-theme="spiderverse"] .bg-stone-50\/70,
+html[data-theme="spiderverse"] .bg-stone-50\/75,
+html[data-theme="spiderverse"] .bg-stone-50\/80,
+html[data-theme="spiderverse"] .bg-stone-100,
+html[data-theme="spiderverse"] .bg-stone-100\/80,
+html[data-theme="spiderverse"] .bg-stone-100\/90,
+html[data-theme="spiderverse"] .bg-stone-200,
+html[data-theme="spiderverse"] .bg-stone-300,
+html[data-theme="spiderverse"] .bg-zinc-100,
+html[data-theme="spiderverse"] .bg-gray-50,
+html[data-theme="spiderverse"] .bg-gray-100,
+html[data-theme="spiderverse"] .bg-gray-200 {
+  background-color: #18181b !important;
+  border-color: #2e0b0e !important;
+  color: #f5f5f5 !important;
+}
+
+html[data-theme="spiderverse"] .bg-white\/70,
+html[data-theme="spiderverse"] .bg-white\/95 {
+  background-color: #111113 !important;
+  border-color: #2e0b0e !important;
+  color: #a1a1aa !important;
+}
+
+html[data-theme="spiderverse"] input,
+html[data-theme="spiderverse"] select {
+  background-color: #141417 !important;
+  border-color: #2e0b0e !important;
+  color: #f5f5f5 !important;
+}
+
+html[data-theme="spiderverse"] input::placeholder {
+  color: #71717a !important;
+}
+
+html[data-theme="spiderverse"] .border-stone-300,
+html[data-theme="spiderverse"] .border-dashed {
+  border-color: #2e0b0e !important;
+}
+
+html[data-theme="spiderverse"] button.bg-white,
+html[data-theme="spiderverse"] span.bg-white {
+  background-color: #161618 !important;
+  border-color: #2e0b0e !important;
+  color: #f5f5f5 !important;
+}
+
+html[data-theme="spiderverse"] .border-stone-200,
+html[data-theme="spiderverse"] .border-stone-200\/70,
+html[data-theme="spiderverse"] .border-stone-200\/80,
+html[data-theme="spiderverse"] .border-stone-100,
+html[data-theme="spiderverse"] .border-blue-200,
+html[data-theme="spiderverse"] .border-blue-200\/80 {
+  border-color: #2e0b0e !important;
+}
+
+/* Razor-sharp Typography Hierarchy (no blurry RGB text-shadows) */
+html[data-theme="spiderverse"] .text-slate-950,
+html[data-theme="spiderverse"] .text-slate-900,
+html[data-theme="spiderverse"] .text-slate-800,
+html[data-theme="spiderverse"] .text-slate-700 {
+  color: #f5f5f5 !important;
+}
+
+html[data-theme="spiderverse"] .text-stone-600,
+html[data-theme="spiderverse"] .text-stone-500,
+html[data-theme="spiderverse"] .text-stone-400,
+html[data-theme="spiderverse"] .text-gray-400,
+html[data-theme="spiderverse"] .text-gray-500 {
+  color: #a1a1aa !important;
+}
+
+html[data-theme="spiderverse"] .text-blue-600,
+html[data-theme="spiderverse"] .text-blue-700,
+html[data-theme="spiderverse"] .text-blue-800,
+html[data-theme="spiderverse"] .text-blue-900,
+html[data-theme="spiderverse"] .text-blue-900\/80 {
+  color: #ef4444 !important;
+}
+
+/* Keep masculine "der" article text crisp light blue */
+html[data-theme="spiderverse"] span.text-blue-700 {
+  color: #93c5fd !important;
+}
+
+/* Locked Nodes on Milestones / Skill Tree */
+html[data-theme="spiderverse"] [data-locked="true"] .sv-milestone-card {
+  background-color: #0d0d10 !important;
+  border: 1px solid #27272a !important;
+  opacity: 1 !important;
+}
+html[data-theme="spiderverse"] [data-locked="true"] .sv-milestone-code {
+  color: #dc2626 !important;
+}
+html[data-theme="spiderverse"] [data-locked="true"] .sv-milestone-card .text-slate-950,
+html[data-theme="spiderverse"] [data-locked="true"] .sv-milestone-card h3 {
+  color: #d4d4d8 !important;
+}
+html[data-theme="spiderverse"] [data-locked="true"] .sv-milestone-card .text-stone-500,
+html[data-theme="spiderverse"] [data-locked="true"] .sv-milestone-card .text-stone-400 {
+  color: #9ca3af !important;
+}
+html[data-theme="spiderverse"] [data-locked="true"] .sv-milestone-dot {
+  background-color: #18181b !important;
+  border-color: #27272a !important;
+  color: #9ca3af !important;
+}
+
+/* Test Tab Drill Mode Selector Bars */
+html[data-theme="spiderverse"] .sv-drill-track,
+html[data-theme="spiderverse"] .sv-fluency-track {
+  background-color: #0d0d10 !important;
+  border: 1px solid #2e0b0e !important;
+}
+html[data-theme="spiderverse"] .sv-drill-tab[data-active="true"] {
+  background-color: #9e141e !important;
+  border-color: #c81d25 !important;
+  color: #ffffff !important;
+}
+html[data-theme="spiderverse"] .sv-drill-tab[data-active="false"] {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #a1a1aa !important;
+}
+html[data-theme="spiderverse"] .sv-fluency-tab[data-active="true"] {
+  background-color: #2b0b0e !important;
+  border: 1px solid #ef4444 !important;
+  color: #ffffff !important;
+}
+html[data-theme="spiderverse"] .sv-fluency-tab[data-active="false"] {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #d4d4d8 !important;
+}
+
+html[data-theme="spiderverse"] h2.font-editorial,
+html[data-theme="spiderverse"] h3.font-editorial {
+  text-shadow: none !important;
+  color: #f5f5f5 !important;
+}
+
+/* Muted Matte German Article Badges */
+html[data-theme="spiderverse"] .bg-blue-700 {
+  background-color: #1e242b !important;
+  border-color: #334155 !important;
+  color: #93c5fd !important;
+}
+html[data-theme="spiderverse"] .text-blue-700,
+html[data-theme="spiderverse"] .text-blue-800 {
+  color: #93c5fd !important;
+}
+html[data-theme="spiderverse"] .bg-blue-50,
+html[data-theme="spiderverse"] .bg-blue-50\/70 {
+  background-color: #161618 !important;
+  border-color: #3a0d11 !important;
+}
+
+html[data-theme="spiderverse"] .bg-red-700 {
+  background-color: #2b1115 !important;
+  border-color: #5c1921 !important;
+  color: #f87171 !important;
+}
+html[data-theme="spiderverse"] .bg-red-50,
+html[data-theme="spiderverse"] .bg-red-50\/70 {
+  background-color: #2b1115 !important;
+  border-color: #4c1d24 !important;
+  color: #f87171 !important;
+}
+html[data-theme="spiderverse"] .text-red-700,
+html[data-theme="spiderverse"] .text-red-800 {
+  color: #f87171 !important;
+}
+
+html[data-theme="spiderverse"] .bg-emerald-700 {
+  background-color: #262012 !important;
+  border-color: #52431e !important;
+  color: #fcd34d !important;
+}
+html[data-theme="spiderverse"] .bg-emerald-50,
+html[data-theme="spiderverse"] .bg-emerald-50\/70,
+html[data-theme="spiderverse"] .bg-teal-50,
+html[data-theme="spiderverse"] .bg-teal-50\/70,
+html[data-theme="spiderverse"] .bg-amber-50,
+html[data-theme="spiderverse"] .bg-amber-100,
+html[data-theme="spiderverse"] .bg-indigo-50,
+html[data-theme="spiderverse"] .bg-sky-50,
+html[data-theme="spiderverse"] .bg-violet-50,
+html[data-theme="spiderverse"] .bg-rose-50,
+html[data-theme="spiderverse"] .bg-purple-50,
+html[data-theme="spiderverse"] .bg-green-100 {
+  background-color: #18181b !important;
+  border-color: #2e0b0e !important;
+  color: #f5f5f5 !important;
+}
+
+html[data-theme="spiderverse"] .bg-emerald-50\/70 .text-emerald-800,
+html[data-theme="spiderverse"] .bg-teal-50 .text-teal-800,
+html[data-theme="spiderverse"] .bg-amber-50 .text-amber-900,
+html[data-theme="spiderverse"] .bg-purple-50 .text-purple-900 {
+  color: #f87171 !important;
+}
+
+html[data-theme="spiderverse"] .text-emerald-700,
+html[data-theme="spiderverse"] .text-emerald-800,
+html[data-theme="spiderverse"] .text-emerald-900 {
+  color: #6ee7b7 !important;
+}
+
+html[data-theme="spiderverse"] .text-teal-800,
+html[data-theme="spiderverse"] .text-amber-900,
+html[data-theme="spiderverse"] .text-purple-900 {
+  color: #f87171 !important;
+}
+
+/* Primary Accent & Buttons: Deep Blood Crimson (#9E141E / #C81D25) */
+html[data-theme="spiderverse"] .bg-blue-800,
+html[data-theme="spiderverse"] .bg-slate-950,
+html[data-theme="spiderverse"] .bg-slate-900 {
+  background-color: #9e141e !important;
+  border: 1px solid #c81d25 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="spiderverse"] button.rounded-full.bg-stone-50,
+html[data-theme="spiderverse"] button.rounded-full.bg-white,
+html[data-theme="spiderverse"] span.rounded-full.bg-white {
+  background-color: #161618 !important;
+  border-color: #3a0d11 !important;
+  color: #f5f5f5 !important;
+}
+html[data-theme="spiderverse"] button.rounded-full.bg-stone-50:active,
+html[data-theme="spiderverse"] button.rounded-full.bg-white:active {
+  border-color: #c81d25 !important;
+}
+
+/* SM-2 Hard pill */
+html[data-theme="spiderverse"] button.bg-amber-50 {
+  background-color: #262012 !important;
+  border-color: #52431e !important;
+  color: #fcd34d !important;
+}
+
+/* Bottom Navigation */
+html[data-theme="spiderverse"] nav[aria-label="Primary navigation"] {
+  background-color: #0b0b0d !important;
+  border-top: 1px solid #2e0b0e !important;
+}
+
+/* Stepped micro-interactions exclusively in Spider-Verse Dark */
+html[data-theme="spiderverse"] button,
+html[data-theme="spiderverse"] .rounded-3xl {
+  transition-timing-function: steps(5, end) !important;
+}
+
+
+

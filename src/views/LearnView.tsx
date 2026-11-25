@@ -23,7 +23,19 @@ import { AiWordPackModal } from '../components/AiWordPackModal';
 import { deleteCustomWord } from '../services/customWords';
 import { hasGeminiKey } from '../services/geminiTutor';
 
-export const LearnView: React.FC = () => {
+interface LearnViewProps {
+  focusWordId?: number | null;
+  onClearFocusWord?: () => void;
+  initialLevel?: CefrLevel | null;
+  onClearInitialLevel?: () => void;
+}
+
+export const LearnView: React.FC<LearnViewProps> = ({
+  focusWordId,
+  onClearFocusWord,
+  initialLevel,
+  onClearInitialLevel,
+}) => {
   const allVocab = useLiveQuery(() => db.vocab.toArray(), []);
   const allVocabRef = useRef<VocabItem[]>([]);
   if (allVocab && allVocab.length > 0) {
@@ -39,6 +51,7 @@ export const LearnView: React.FC = () => {
   const [aiAvailable, setAiAvailable] = useState<boolean>(() => hasGeminiKey());
   const [aiPackModalOpen, setAiPackModalOpen] = useState(false);
   const [aiPackToast, setAiPackToast] = useState<string | null>(null);
+  const [pinnedFocusId, setPinnedFocusId] = useState<number | null>(focusWordId ?? null);
   const touchStartXRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -88,9 +101,34 @@ export const LearnView: React.FC = () => {
     const unlearnedWords = filtered.filter((w) => !learnedIds.has(w.id!));
     const learnedWords = filtered.filter((w) => learnedIds.has(w.id!));
 
-    return [...shuffleArray(unlearnedWords), ...shuffleArray(learnedWords)];
+    const deck = [...shuffleArray(unlearnedWords), ...shuffleArray(learnedWords)];
+    if (pinnedFocusId) {
+      const idx = deck.findIndex((w) => w.id === pinnedFocusId);
+      if (idx > 0) {
+        const [target] = deck.splice(idx, 1);
+        deck.unshift(target);
+      }
+    }
+    return deck;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levelFilter, topicFilter, shuffleSeed, allVocab ? allVocab.length : 0]);
+  }, [levelFilter, topicFilter, shuffleSeed, pinnedFocusId, allVocab ? allVocab.length : 0]);
+
+  useEffect(() => {
+    if (!focusWordId) return;
+    setPinnedFocusId(focusWordId);
+    setLevelFilter('ALL');
+    setTopicFilter('ALL');
+    setCardIndex(0);
+    onClearFocusWord?.();
+  }, [focusWordId, onClearFocusWord]);
+
+  useEffect(() => {
+    if (!initialLevel) return;
+    setLevelFilter(initialLevel);
+    setTopicFilter('ALL');
+    setCardIndex(0);
+    onClearInitialLevel?.();
+  }, [initialLevel, onClearInitialLevel]);
 
   const safeIndex = sessionDeck.length > 0 ? Math.min(cardIndex, sessionDeck.length - 1) : 0;
   const currentCard: VocabItem | undefined = sessionDeck[safeIndex];

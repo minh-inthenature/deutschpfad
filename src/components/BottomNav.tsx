@@ -45,8 +45,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               }`}
             >
               <span
-                className={`relative flex h-7 w-10 items-center justify-center rounded-full transition-colors ${
-                  isActive ? 'bg-slate-900 text-white' : 'bg-transparent'
+                className={`relative flex h-7 w-10 items-center justify-center rounded-full transition-all duration-150 ease-out ${
+                  isActive ? 'scale-100 bg-slate-900 text-white' : 'scale-95 bg-transparent'
                 }`}
               >
                 <Icon className={`h-[17px] w-[17px] ${isActive ? 'stroke-[2.3]' : 'stroke-[1.9]'}`} />

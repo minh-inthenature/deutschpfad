@@ -7,6 +7,12 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
   },
+  plugins: {
+    LocalNotifications: {
+      smallIcon: 'ic_stat_deutschpfad',
+      iconColor: '#E23636',
+    },
+  },
 };
 
 export default config;

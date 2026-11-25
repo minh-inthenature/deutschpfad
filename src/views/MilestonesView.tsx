@@ -107,10 +107,10 @@ export const MilestonesView: React.FC<MilestonesViewProps> = ({
                         : 'border-stone-300 bg-stone-200 text-stone-400';
 
                     return (
-                      <div key={m.code} className="relative">
+                      <div key={m.code} className="relative" data-locked={!m.isUnlocked ? 'true' : 'false'}>
                         {/* Node Circle on the Vertical Rail */}
                         <span
-                          className={`absolute top-1/2 -left-6 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border-2 ${nodeDot}`}
+                          className={`sv-milestone-dot absolute top-1/2 -left-6 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border-2 ${nodeDot}`}
                         >
                           {m.completed ? (
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -125,7 +125,7 @@ export const MilestonesView: React.FC<MilestonesViewProps> = ({
                           type="button"
                           disabled={!m.isUnlocked}
                           onClick={() => setSelectedCode(m.code)}
-                          className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${
+                          className={`sv-milestone-card flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${
                             m.isUnlocked
                               ? 'border-stone-200 bg-white shadow-xs active:scale-[0.985]'
                               : 'cursor-not-allowed border-stone-200/70 bg-stone-100/80 opacity-70'
@@ -133,7 +133,7 @@ export const MilestonesView: React.FC<MilestonesViewProps> = ({
                         >
                           <div className="min-w-0 pr-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-extrabold tracking-wide text-blue-800">
+                              <span className="sv-milestone-code text-[11px] font-extrabold tracking-wide text-blue-800">
                                 {m.code}
                               </span>
                               {m.bestScore > 0 && (

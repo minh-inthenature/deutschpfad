@@ -65,6 +65,7 @@ export interface VocabItem {
   gender?: string;
   plural: string;
   meaning: string;
+  meaningVi?: string;
   exampleDe: string;
   exampleEn: string;
   level: CefrLevel;
@@ -74,6 +75,7 @@ export interface VocabItem {
   adjectiveForms?: string;
   grammarNote?: string;
   isCustom?: boolean;
+  enriched?: boolean;
   status: VocabStatus;
   easeFactor: number;
   intervalDays: number;
@@ -153,6 +155,31 @@ export interface MistakeLog {
   updatedAt: number;
 }
 
+export interface ListeningDialogueLine {
+  speaker: string;
+  de: string;
+  en: string;
+}
+
+export interface ListeningQuestion {
+  prompt: string;
+  options: string[];
+  correctIndex: number;
+}
+
+export interface ListeningLesson {
+  id?: number;
+  cacheKey: string;
+  title: string;
+  level: CefrLevel;
+  lines: ListeningDialogueLine[];
+  questions: ListeningQuestion[];
+  audioBase64?: string;
+  audioMimeType?: string;
+  source: 'preset' | 'gemini';
+  createdAt: number;
+}
+
 export class DeutschPfadDB extends Dexie {
   vocab!: EntityTable<VocabItem, 'id'>;
   milestones!: EntityTable<Milestone, 'id'>;
@@ -161,6 +188,7 @@ export class DeutschPfadDB extends Dexie {
   dictionary!: EntityTable<DictionaryEntry, 'id'>;
   dictionaryCache!: EntityTable<DictionaryEntry, 'id'>;
   recentLookups!: EntityTable<RecentLookup, 'id'>;
+  listeningLessons!: EntityTable<ListeningLesson, 'id'>;
 
   constructor() {
     super('DeutschPfadDB');
@@ -227,6 +255,17 @@ export class DeutschPfadDB extends Dexie {
       dictionary: '++id, german, partOfSpeech, level, isFavorite, *searchAliases',
       dictionaryCache: '++id, german, partOfSpeech, level, isFavorite, cachedAt, *searchAliases',
       recentLookups: '++id, &dictId, lookedUpAt',
+    });
+
+    this.version(7).stores({
+      vocab: '++id, german, level, topic, partOfSpeech, status, nextReviewAt',
+      milestones: '++id, &code, level, orderIndex, isUnlocked, completed',
+      studyLogs: '&date',
+      mistakeLogs: '++id, vocabId, mistakeType, status, updatedAt',
+      dictionary: '++id, german, partOfSpeech, level, isFavorite, *searchAliases',
+      dictionaryCache: '++id, german, partOfSpeech, level, isFavorite, cachedAt, *searchAliases',
+      recentLookups: '++id, &dictId, lookedUpAt',
+      listeningLessons: '++id, &cacheKey, level, createdAt',
     });
   }
 }

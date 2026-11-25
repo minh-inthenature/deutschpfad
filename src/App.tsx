@@ -5,11 +5,20 @@ import { seedDatabaseIfNeeded } from './db/seed';
 import { BottomNav, type TabId } from './components/BottomNav';
 import { ReferenceModal } from './components/ReferenceModal';
 import { MistakeNotebookModal } from './components/MistakeNotebookModal';
+import { SettingsModal } from './components/SettingsModal';
+import { SpiderVerseToast } from './components/SpiderVerseToast';
+import { LearnedWordsModal } from './components/LearnedWordsModal';
+import type { CefrLevel, VocabItem } from './db/database';
 import { HomeView } from './views/HomeView';
 import { LearnView } from './views/LearnView';
 import { VocabCheckView } from './views/VocabCheckView';
 import { MilestonesView } from './views/MilestonesView';
 import { DictionaryView } from './views/DictionaryView';
+import {
+  loadReminderPreferences,
+  registerNotificationActionListener,
+  scheduleDailyReminder,
+} from './services/notificationService';
 
 export const App: React.FC = () => {
   const [ready, setReady] = useState(false);
@@ -19,6 +28,12 @@ export const App: React.FC = () => {
   const [referenceOpen, setReferenceOpen] = useState(false);
   const [mistakesOpen, setMistakesOpen] = useState(false);
   const [mistakesAutoDrill, setMistakesAutoDrill] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [spiderToastWord, setSpiderToastWord] = useState<VocabItem | null>(null);
+  const [focusLearnWordId, setFocusLearnWordId] = useState<number | null>(null);
+  const [learnedModalLevel, setLearnedModalLevel] = useState<CefrLevel | null>(null);
+  const [pendingLearnLevel, setPendingLearnLevel] = useState<CefrLevel | null>(null);
+  const [pendingTestLevel, setPendingTestLevel] = useState<CefrLevel | null>(null);
 
   useEffect(() => {
     seedDatabaseIfNeeded()
@@ -28,6 +43,34 @@ export const App: React.FC = () => {
         setError('Could not initialize local offline database.');
       });
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    let cleanup: (() => void) | null = null;
+    void registerNotificationActionListener((route, vocabId) => {
+      if (route === 'mistakes') {
+        setMistakesAutoDrill(true);
+        setMistakesOpen(true);
+      } else if (route === 'vocab-check') {
+        setActiveTab('vocab-check');
+      } else {
+        if (vocabId) setFocusLearnWordId(vocabId);
+        setActiveTab('learn');
+      }
+    }).then((remove) => {
+      cleanup = remove;
+    });
+
+    const prefs = loadReminderPreferences();
+    if (prefs.enabled) {
+      void scheduleDailyReminder(prefs.hour, prefs.minute).catch(() => {});
+    }
+
+    return () => {
+      cleanup?.();
+    };
+  }, [ready]);
 
   const dueCount =
     useLiveQuery(async () => {
@@ -94,30 +137,43 @@ export const App: React.FC = () => {
     <div className="min-h-dvh w-full bg-[#f1efe9]">
       <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col bg-paper shadow-xl ring-1 ring-stone-900/10 pt-safe">
         <main className="flex-1 pb-nav-safe">
-          {activeTab === 'home' && (
-            <HomeView
-              onNavigate={setActiveTab}
-              onOpenMilestone={handleOpenMilestone}
-              onOpenReference={handleOpenReference}
-              onOpenMistakes={handleOpenMistakes}
-              activeMistakesCount={activeMistakesCount}
-            />
-          )}
-          {activeTab === 'learn' && <LearnView />}
-          {activeTab === 'vocab-check' && (
-            <VocabCheckView
-              activeMistakesCount={activeMistakesCount}
-              onOpenMistakes={() => handleOpenMistakes(false)}
-            />
-          )}
-          {activeTab === 'milestones' && (
-            <MilestonesView
-              initialMilestoneCode={pendingMilestoneCode}
-              onClearInitialMilestone={handleClearInitialMilestone}
-              onOpenReference={handleOpenReference}
-            />
-          )}
-          {activeTab === 'dictionary' && <DictionaryView />}
+          <div key={activeTab} className="tab-view-enter">
+            {activeTab === 'home' && (
+              <HomeView
+                onNavigate={setActiveTab}
+                onOpenMilestone={handleOpenMilestone}
+                onOpenReference={handleOpenReference}
+                onOpenMistakes={handleOpenMistakes}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenLevelModal={(lvl) => setLearnedModalLevel(lvl)}
+                activeMistakesCount={activeMistakesCount}
+              />
+            )}
+            {activeTab === 'learn' && (
+              <LearnView
+                focusWordId={focusLearnWordId}
+                onClearFocusWord={() => setFocusLearnWordId(null)}
+                initialLevel={pendingLearnLevel}
+                onClearInitialLevel={() => setPendingLearnLevel(null)}
+              />
+            )}
+            {activeTab === 'vocab-check' && (
+              <VocabCheckView
+                activeMistakesCount={activeMistakesCount}
+                onOpenMistakes={() => handleOpenMistakes(false)}
+                initialLevel={pendingTestLevel}
+                onClearInitialLevel={() => setPendingTestLevel(null)}
+              />
+            )}
+            {activeTab === 'milestones' && (
+              <MilestonesView
+                initialMilestoneCode={pendingMilestoneCode}
+                onClearInitialMilestone={handleClearInitialMilestone}
+                onOpenReference={handleOpenReference}
+              />
+            )}
+            {activeTab === 'dictionary' && <DictionaryView />}
+          </div>
         </main>
 
         <BottomNav
@@ -127,7 +183,37 @@ export const App: React.FC = () => {
           activeMistakesCount={activeMistakesCount}
         />
 
+        <LearnedWordsModal
+          open={Boolean(learnedModalLevel)}
+          initialLevel={learnedModalLevel ?? 'A0'}
+          onClose={() => setLearnedModalLevel(null)}
+          onStartLearningLevel={(lvl) => {
+            setPendingLearnLevel(lvl);
+            setActiveTab('learn');
+          }}
+          onPracticeLevel={(lvl) => {
+            setPendingTestLevel(lvl);
+            setActiveTab('vocab-check');
+          }}
+        />
         <ReferenceModal open={referenceOpen} onClose={() => setReferenceOpen(false)} />
+        <SettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onTriggerSpiderToast={(word) => {
+            setSettingsOpen(false);
+            setSpiderToastWord(word);
+          }}
+        />
+        <SpiderVerseToast
+          word={spiderToastWord}
+          onDismiss={() => setSpiderToastWord(null)}
+          onDrill={(word) => {
+            setSpiderToastWord(null);
+            if (word.id) setFocusLearnWordId(word.id);
+            setActiveTab('learn');
+          }}
+        />
         <MistakeNotebookModal
           open={mistakesOpen}
           autoStartDrill={mistakesAutoDrill}

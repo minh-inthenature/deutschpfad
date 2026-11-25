@@ -12,7 +12,10 @@ import {
   StickyNote,
   Sparkles,
   Zap,
+  Settings,
 } from 'lucide-react';
+import { ThemeToggleButton } from '../components/ThemeToggleButton';
+import { useTheme } from '../context/ThemeContext';
 import {
   db,
   getTodayDateString,
@@ -34,6 +37,8 @@ interface HomeViewProps {
   onOpenMilestone: (code: string) => void;
   onOpenReference: () => void;
   onOpenMistakes: (autoStartDrill?: boolean) => void;
+  onOpenSettings: () => void;
+  onOpenLevelModal: (level: CefrLevel) => void;
   activeMistakesCount: number;
 }
 
@@ -50,6 +55,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenMilestone,
   onOpenReference,
   onOpenMistakes,
+  onOpenSettings,
+  onOpenLevelModal,
   activeMistakesCount,
 }) => {
   const vocab = useLiveQuery(() => db.vocab.toArray(), []);
@@ -60,6 +67,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     [],
   );
 
+  const { theme } = useTheme();
+  const isSpider = theme === 'spiderverse';
   const [spotlightToggle, setSpotlightToggle] = useState<'auto' | 'today'>('auto');
   const [learnedToast, setLearnedToast] = useState<string | null>(null);
 
@@ -237,11 +246,35 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* Warm Editorial Header */}
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 flex-col overflow-hidden rounded-xl shadow-xs ring-1 ring-slate-900/15">
-            <div className="flex-1 bg-slate-950" />
-            <div className="flex-1 bg-red-600" />
-            <div className="flex-1 bg-amber-400" />
-          </div>
+          {isSpider ? (
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0A0A0C] shadow-xs ring-1 ring-[#3A0D11]">
+              <svg viewBox="0 0 36 36" className="h-7 w-7" aria-hidden="true">
+                <ellipse
+                  cx="18"
+                  cy="18"
+                  rx="11"
+                  ry="13"
+                  fill="#111113"
+                  stroke="#C81D25"
+                  strokeWidth="2.2"
+                />
+                <path
+                  d="M16.5 17.5L10.5 13C10 17.5 12.2 21 16 20Z"
+                  fill="#FFFFFF"
+                />
+                <path
+                  d="M19.5 17.5L25.5 13C26 17.5 23.8 21 20 20Z"
+                  fill="#FFFFFF"
+                />
+              </svg>
+            </div>
+          ) : (
+            <div className="flex h-9 w-9 flex-col overflow-hidden rounded-xl shadow-xs ring-1 ring-slate-900/15">
+              <div className="flex-1 bg-slate-950" />
+              <div className="flex-1 bg-red-600" />
+              <div className="flex-1 bg-amber-400" />
+            </div>
+          )}
           <div>
             <h1 className="font-editorial text-xl font-bold tracking-tight text-slate-950 leading-none">
               DeutschPfad
@@ -253,17 +286,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-800 shadow-2xs">
-            <Flame className="h-3.5 w-3.5 text-amber-500" />
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-[11px] font-bold shadow-2xs ${
+              isSpider
+                ? 'border-[#3A0D11] bg-[#161618] text-[#EF4444]'
+                : 'border-stone-200 bg-white text-slate-800'
+            }`}
+          >
+            <Flame
+              className={`h-3.5 w-3.5 ${isSpider ? 'text-[#EF4444]' : 'text-amber-500'}`}
+            />
             {stats.streak}d
           </span>
           <button
             type="button"
             onClick={onOpenReference}
-            className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-extrabold text-blue-800 shadow-2xs transition active:scale-95"
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-extrabold shadow-2xs transition active:scale-95 ${
+              isSpider
+                ? 'border-[#3A0D11] bg-[#161618] text-[#EF4444]'
+                : 'border-blue-200 bg-blue-50 text-blue-800'
+            }`}
           >
             <BookMarked className="h-3.5 w-3.5" />
             Reference
+          </button>
+          <ThemeToggleButton />
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-label="Open Settings"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-white text-slate-700 shadow-2xs transition hover:bg-stone-50 active:scale-95"
+          >
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </header>
@@ -604,9 +658,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     ? 'bg-blue-700'
                     : 'bg-amber-600';
             return (
-              <div
+              <button
                 key={band.level}
-                className="rounded-2xl border border-stone-100 bg-stone-50 p-2"
+                type="button"
+                onClick={() => onOpenLevelModal(band.level)}
+                className="cursor-pointer rounded-2xl border border-stone-100 bg-stone-50 p-2 text-left transition hover:border-red-500/60 active:scale-[0.98]"
               >
                 <div className="flex items-baseline justify-between">
                   <span className="text-xs font-extrabold text-slate-950">{band.level}</span>
@@ -621,7 +677,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <p className="mt-1.5 text-[9px] font-semibold text-stone-500">
                   {band.vocabLearned}/{band.vocabTotal}w
                 </p>
-              </div>
+              </button>
             );
           })}
         </div>

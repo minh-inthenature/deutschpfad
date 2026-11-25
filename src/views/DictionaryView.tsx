@@ -21,7 +21,16 @@ import {
   recordRecentLookup,
   upsertDictionaryCache,
   type DictionaryEntry,
+  type PartOfSpeech,
+  type VocabItem,
 } from '../db/database';
+import {
+  AiEnrichIconButton,
+  EditCardIconButton,
+  type EnrichButtonState,
+} from '../components/CardIconButtons';
+import { CardEditSheet } from '../components/CardEditSheet';
+import { enrichDictionaryEntry } from '../services/cardEnrichService';
 import {
   fetchAndCacheLiveLookup,
   searchLocalDictionary,
@@ -58,6 +67,8 @@ export const DictionaryView: React.FC = () => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<DictFilter>('all');
   const [selectedEntry, setSelectedEntry] = useState<DictionaryEntry | null>(null);
+  const [editingVocabCard, setEditingVocabCard] = useState<VocabItem | null>(null);
+  const [rowEnrichStates, setRowEnrichStates] = useState<Record<string, EnrichButtonState>>({});
 
   const [localHits, setLocalHits] = useState<
     { entry: DictionaryEntry; score: number; matchedAlias?: string }[]
@@ -343,6 +354,64 @@ export const DictionaryView: React.FC = () => {
     }
   };
 
+  const handleEnrichRow = async (e: React.MouseEvent, entry: DictionaryEntry) => {
+    e.stopPropagation();
+    const rowKey = `${entry.german.toLowerCase()}|${entry.partOfSpeech}`;
+    setRowEnrichStates((prev) => ({ ...prev, [rowKey]: 'loading' }));
+    try {
+      const updated = await enrichDictionaryEntry(entry);
+      setRowEnrichStates((prev) => ({ ...prev, [rowKey]: 'success' }));
+      showToast(`Enriched "${updated.german}"`);
+      if (query.trim()) {
+        void searchLocalDictionary(query.trim()).then(setLocalHits);
+      }
+      setTimeout(() => {
+        setRowEnrichStates((prev) => ({ ...prev, [rowKey]: 'idle' }));
+      }, 1200);
+    } catch (err) {
+      setRowEnrichStates((prev) => ({ ...prev, [rowKey]: 'idle' }));
+      showToast(err instanceof Error ? err.message : 'AI enrichment failed.');
+    }
+  };
+
+  const handleEditRow = async (e: React.MouseEvent, entry: DictionaryEntry) => {
+    e.stopPropagation();
+    const existing = await db.vocab
+      .where('german')
+      .equalsIgnoreCase(entry.german.trim())
+      .first();
+    if (existing) {
+      setEditingVocabCard(existing);
+      return;
+    }
+    const mappedPos: PartOfSpeech =
+      entry.partOfSpeech === 'noun' ||
+      entry.partOfSpeech === 'verb' ||
+      entry.partOfSpeech === 'adjective'
+        ? entry.partOfSpeech
+        : 'phrase';
+    const firstEx = entry.examples?.[0];
+    const newItem: VocabItem = {
+      german: entry.german,
+      word: entry.german,
+      article: entry.article,
+      plural: entry.plural || '—',
+      meaning: entry.english,
+      exampleDe: firstEx?.de || '',
+      exampleEn: firstEx?.en || '',
+      level: entry.level === 'B2' ? 'B1' : entry.level,
+      topic: 'Dictionary',
+      partOfSpeech: mappedPos,
+      isCustom: true,
+      status: 'new',
+      easeFactor: 2.5,
+      intervalDays: 0,
+      nextReviewAt: Date.now(),
+    };
+    const id = await db.vocab.add(newItem);
+    setEditingVocabCard({ ...newItem, id });
+  };
+
   const renderEntryRow = (
     entry: DictionaryEntry,
     matchedAlias?: string,
@@ -406,13 +475,22 @@ export const DictionaryView: React.FC = () => {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <AiEnrichIconButton
+            size="sm"
+            state={rowEnrichStates[`${entry.german.toLowerCase()}|${entry.partOfSpeech}`] ?? 'idle'}
+            onClick={(e) => void handleEnrichRow(e, entry)}
+          />
+          <EditCardIconButton
+            size="sm"
+            onClick={(e) => void handleEditRow(e, entry)}
+          />
           {isCustomEntry && (
             <button
               type="button"
               onClick={(e) => void handleDeleteCustomEntry(e, entry)}
               aria-label={`Delete ${entry.german}`}
               title={`Delete ${entry.german}`}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-stone-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 active:scale-90"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-stone-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 active:scale-90"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -790,6 +868,13 @@ export const DictionaryView: React.FC = () => {
               : 'All generated words were already in your deck.',
           );
         }}
+      />
+
+      <CardEditSheet
+        open={Boolean(editingVocabCard)}
+        card={editingVocabCard}
+        onClose={() => setEditingVocabCard(null)}
+        onSaved={(updated) => showToast(`Saved "${updated.german}"`)}
       />
     </div>
   );

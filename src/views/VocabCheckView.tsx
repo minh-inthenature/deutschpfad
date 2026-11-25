@@ -14,6 +14,7 @@ import {
   Zap,
   Puzzle,
   AlertCircle,
+  Headphones,
 } from 'lucide-react';
 import {
   computeSm2Update,
@@ -37,12 +38,29 @@ import { ArticlePluralDrill } from '../components/drills/ArticlePluralDrill';
 import { CaseBlitzDrill } from '../components/drills/CaseBlitzDrill';
 import { SentenceBuilderDrill } from '../components/drills/SentenceBuilderDrill';
 import { InlineMistakeNote } from '../components/InlineMistakeNote';
+import { ListeningPractice } from '../components/ListeningPractice';
+import {
+  AiEnrichIconButton,
+  EditCardIconButton,
+  type EnrichButtonState,
+} from '../components/CardIconButtons';
+import { CardEditSheet } from '../components/CardEditSheet';
+import { enrichVocabCard } from '../services/cardEnrichService';
 
-type DrillMode = 'flip' | 'article' | 'spell' | 'article-plural' | 'case-blitz' | 'satzbau';
+type DrillMode =
+  | 'flip'
+  | 'article'
+  | 'spell'
+  | 'article-plural'
+  | 'case-blitz'
+  | 'satzbau'
+  | 'listening';
 
 interface VocabCheckViewProps {
   activeMistakesCount: number;
   onOpenMistakes: () => void;
+  initialLevel?: CefrLevel | null;
+  onClearInitialLevel?: () => void;
 }
 
 const UMLAUT_BAR = ['ä', 'ö', 'ü', 'ß'] as const;
@@ -56,10 +74,22 @@ function formatIntervalLabel(days: number): string {
 export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
   activeMistakesCount,
   onOpenMistakes,
+  initialLevel,
+  onClearInitialLevel,
 }) => {
   const vocab = useLiveQuery(() => db.vocab.toArray(), []);
   const [mode, setMode] = useState<DrillMode>('flip');
-  const [levelFilter, setLevelFilter] = useState<'ALL' | CefrLevel>('ALL');
+  const [levelFilter, setLevelFilter] = useState<'ALL' | CefrLevel>(
+    initialLevel ?? 'ALL',
+  );
+
+  React.useEffect(() => {
+    if (!initialLevel) return;
+    setLevelFilter(initialLevel);
+    setPinnedIds(null);
+    setIndex(0);
+    onClearInitialLevel?.();
+  }, [initialLevel, onClearInitialLevel]);
 
   // Pin active batch IDs so live Dexie updates don't cause cards to jump mid-session
   const [pinnedIds, setPinnedIds] = useState<number[] | null>(null);
@@ -83,6 +113,10 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
   const [spellResult, setSpellResult] = useState<'idle' | 'correct' | 'wrong'>('idle');
   const [spellMistakeId, setSpellMistakeId] = useState<number | null>(null);
   const spellInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [editingCard, setEditingCard] = useState<VocabItem | null>(null);
+  const [enrichStates, setEnrichStates] = useState<Record<number, EnrichButtonState>>({});
+  const [enrichError, setEnrichError] = useState<string | null>(null);
 
   const now = Date.now();
 
@@ -330,7 +364,7 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
 
       {/* Mode Selector: Row 1 Core Drills · Row 2 Active Fluency */}
       <div className="mb-4 space-y-1.5">
-        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-stone-200 bg-stone-100/90 p-1">
+        <div className="sv-drill-track grid grid-cols-3 gap-1 rounded-2xl border border-stone-200 bg-stone-100/90 p-1">
           {(
             [
               { id: 'flip', label: 'Recall Flip', icon: Layers },
@@ -344,7 +378,8 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
                 key={id}
                 type="button"
                 onClick={() => switchMode(id)}
-                className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[11px] font-bold transition ${
+                data-active={active ? 'true' : 'false'}
+                className={`sv-drill-tab flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[11px] font-bold transition ${
                   active
                     ? 'bg-white text-slate-950 shadow-xs'
                     : 'text-stone-600 hover:text-slate-900'
@@ -357,12 +392,13 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
           })}
         </div>
 
-        <div className="grid grid-cols-3 gap-1 rounded-2xl border border-blue-200/80 bg-blue-50/70 p-1">
+        <div className="sv-fluency-track grid grid-cols-2 gap-1 rounded-2xl border border-blue-200/80 bg-blue-50/70 p-1 sm:grid-cols-4">
           {(
             [
               { id: 'article-plural', label: 'Artikel & Plural', icon: BookA },
               { id: 'case-blitz', label: 'Fall-Training', icon: Zap },
               { id: 'satzbau', label: 'Satzbau', icon: Puzzle },
+              { id: 'listening', label: 'Hörverstehen', icon: Headphones },
             ] as const
           ).map(({ id, label, icon: Icon }) => {
             const active = mode === id;
@@ -371,7 +407,8 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
                 key={id}
                 type="button"
                 onClick={() => switchMode(id)}
-                className={`flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[11px] font-bold transition ${
+                data-active={active ? 'true' : 'false'}
+                className={`sv-fluency-tab flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[11px] font-bold transition ${
                   active
                     ? 'bg-blue-700 text-white shadow-xs'
                     : 'text-blue-900/80 hover:text-blue-950'
@@ -389,6 +426,27 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
       {mode === 'article-plural' && <ArticlePluralDrill />}
       {mode === 'case-blitz' && <CaseBlitzDrill />}
       {mode === 'satzbau' && <SentenceBuilderDrill />}
+      {mode === 'listening' && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-1">
+            {(['ALL', 'A0', 'A1', 'A2', 'B1'] as const).map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={() => setLevelFilter(lvl)}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+                  levelFilter === lvl
+                    ? 'bg-slate-950 text-white'
+                    : 'border border-stone-200 bg-white text-slate-700'
+                }`}
+              >
+                {lvl === 'ALL' ? 'All' : lvl}
+              </button>
+            ))}
+          </div>
+          <ListeningPractice levelFilter={levelFilter} />
+        </div>
+      )}
 
       {/* Level Filter for Core Test modes (A0 -> B1) */}
       {isCoreVocabMode && (
@@ -463,18 +521,54 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
               >
                 {currentCard.level} · {currentCard.topic}
               </span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void speakGerman(formatWordWithArticle(currentCard.article, currentCard.german));
-                }}
-                aria-label="Pronounce word"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-slate-900 active:scale-90"
-              >
-                <Volume2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <AiEnrichIconButton
+                  state={currentCard.id ? (enrichStates[currentCard.id] ?? 'idle') : 'idle'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const cid = currentCard.id;
+                    if (!cid) return;
+                    setEnrichError(null);
+                    setEnrichStates((prev) => ({ ...prev, [cid]: 'loading' }));
+                    void enrichVocabCard(currentCard, { forceRefresh: Boolean(currentCard.enriched) })
+                      .then(() => {
+                        setEnrichStates((prev) => ({ ...prev, [cid]: 'success' }));
+                        setTimeout(() => {
+                          setEnrichStates((prev) => ({ ...prev, [cid]: 'idle' }));
+                        }, 1200);
+                      })
+                      .catch((err) => {
+                        setEnrichStates((prev) => ({ ...prev, [cid]: 'idle' }));
+                        setEnrichError(
+                          err instanceof Error ? err.message : 'AI enrichment failed.',
+                        );
+                      });
+                  }}
+                />
+                <EditCardIconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingCard(currentCard);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void speakGerman(formatWordWithArticle(currentCard.article, currentCard.german));
+                  }}
+                  aria-label="Pronounce word"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-stone-50 text-slate-900 active:scale-90"
+                >
+                  <Volume2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
+            {enrichError && (
+              <p className="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-800">
+                {enrichError}
+              </p>
+            )}
 
             {!flipped ? (
               <div className="my-10 text-center">
@@ -510,6 +604,11 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
                   </p>
                 )}
                 <p className="mt-3 text-xl font-bold text-blue-800">{currentCard.meaning}</p>
+                {currentCard.meaningVi && (
+                  <p className="mt-1 inline-block rounded-full bg-blue-50 px-3 py-0.5 text-xs font-semibold text-blue-800">
+                    {currentCard.meaningVi}
+                  </p>
+                )}
 
                 <div className="mt-5 rounded-2xl border border-stone-200/80 bg-stone-50 p-3.5 text-left">
                   <p className="text-sm font-semibold text-slate-900">{currentCard.exampleDe}</p>
@@ -830,6 +929,12 @@ export const VocabCheckView: React.FC<VocabCheckViewProps> = ({
           </button>
         </div>
       )}
+
+      <CardEditSheet
+        open={Boolean(editingCard)}
+        card={editingCard}
+        onClose={() => setEditingCard(null)}
+      />
     </div>
   );
 };

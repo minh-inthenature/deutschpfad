@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   X,
   Search,
@@ -6,16 +6,6 @@ import {
   Table2,
   BookMarked,
   GitFork,
-  Sparkles,
-  Eye,
-  EyeOff,
-  CheckCircle2,
-  AlertCircle,
-  WifiOff,
-  Loader2,
-  Trash2,
-  Download,
-  Upload,
 } from 'lucide-react';
 import {
   CONNECTOR_GROUPS,
@@ -23,22 +13,6 @@ import {
   PREPOSITION_GROUPS,
 } from '../data/referenceData';
 import { speakGerman } from '../utils/german';
-import {
-  GEMINI_MODELS,
-  clearGeminiKey,
-  getSavedGeminiKey,
-  getSavedGeminiModel,
-  saveGeminiKey,
-  saveGeminiModel,
-  testGeminiConnection,
-  type GeminiModelId,
-} from '../services/geminiTutor';
-import {
-  clearAllCustomWords,
-  exportCustomWordsBackup,
-  getStoredCustomWords,
-  importCustomWordsBackup,
-} from '../services/customWords';
 
 interface ReferenceModalProps {
   open: boolean;
@@ -46,7 +20,7 @@ interface ReferenceModalProps {
   initialTab?: ReferenceTab;
 }
 
-export type ReferenceTab = 'cases' | 'verbs' | 'preps' | 'ai';
+export type ReferenceTab = 'cases' | 'verbs' | 'preps';
 
 export const ReferenceModal: React.FC<ReferenceModalProps> = ({
   open,
@@ -55,123 +29,6 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
 }) => {
   const [tab, setTab] = useState<ReferenceTab>(initialTab);
   const [verbQuery, setVerbQuery] = useState('');
-
-  // AI Tutor Settings state
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<GeminiModelId>('gemini-3.8-flash');
-  const [testingConn, setTestingConn] = useState(false);
-  const [connStatus, setConnStatus] = useState<{
-    state: 'idle' | 'connected' | 'offline' | 'error';
-    message: string;
-  }>({ state: 'idle', message: '' });
-
-  // Custom Deck Backup state
-  const [customCount, setCustomCount] = useState(0);
-  const [backupStatus, setBackupStatus] = useState<string | null>(null);
-  const [confirmClearAll, setConfirmClearAll] = useState(false);
-  const importInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      const savedKey = getSavedGeminiKey();
-      setApiKeyInput(savedKey);
-      setSelectedModel(getSavedGeminiModel());
-      setCustomCount(getStoredCustomWords().length);
-      setBackupStatus(null);
-      setConfirmClearAll(false);
-      setConnStatus(
-        savedKey
-          ? { state: 'idle', message: 'Key saved in localStorage' }
-          : { state: 'offline', message: 'Offline Mode' },
-      );
-    }
-  }, [open]);
-
-  const handleConfirmClearAll = async () => {
-    const removed = await clearAllCustomWords();
-    setCustomCount(0);
-    setConfirmClearAll(false);
-    setBackupStatus(`Cleared ${removed} custom AI word${removed === 1 ? '' : 's'}.`);
-  };
-
-  const handleExportBackup = async () => {
-    try {
-      const payload = await exportCustomWordsBackup();
-      const json = JSON.stringify(payload, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `deutschpfad-custom-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      setBackupStatus(`Exported ${payload.customWords.length} custom words & study progress.`);
-    } catch {
-      setBackupStatus('Failed to export JSON backup.');
-    }
-  };
-
-  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const res = await importCustomWordsBackup(text);
-      setCustomCount(getStoredCustomWords().length);
-      setBackupStatus(
-        `Imported ${res.importedWords} new words & restored ${res.restoredProgress} progress entries.`,
-      );
-    } catch (err) {
-      setBackupStatus(err instanceof Error ? err.message : 'Invalid backup file.');
-    } finally {
-      e.target.value = '';
-    }
-  };
-
-  const handleSaveKey = () => {
-    const trimmed = apiKeyInput.trim();
-    saveGeminiKey(trimmed);
-    if (trimmed) {
-      setConnStatus({ state: 'idle', message: 'Key saved! Tap Test Connection to verify.' });
-    } else {
-      setConnStatus({ state: 'offline', message: 'Offline Mode' });
-    }
-  };
-
-  const handleClearKey = () => {
-    clearGeminiKey();
-    setApiKeyInput('');
-    setConnStatus({ state: 'offline', message: 'Offline Mode — key cleared' });
-  };
-
-  const handleModelChange = (model: GeminiModelId) => {
-    setSelectedModel(model);
-    saveGeminiModel(model);
-  };
-
-  const handleTestConnection = async () => {
-    const trimmed = apiKeyInput.trim();
-    if (!trimmed) {
-      setConnStatus({ state: 'offline', message: 'Offline Mode — enter a Gemini key first' });
-      return;
-    }
-    saveGeminiKey(trimmed);
-    saveGeminiModel(selectedModel);
-    setTestingConn(true);
-    const res = await testGeminiConnection(trimmed, selectedModel);
-    setTestingConn(false);
-    if (res.ok) {
-      setConnStatus({ state: 'connected', message: 'Connected' });
-    } else {
-      setConnStatus({
-        state: res.message.toLowerCase().includes('offline') ? 'offline' : 'error',
-        message: res.message,
-      });
-    }
-  };
 
   const filteredVerbs = useMemo(() => {
     const q = verbQuery.trim().toLowerCase();
@@ -219,14 +76,13 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
             </button>
           </div>
 
-          {/* 4 Tabs */}
-          <div className="mt-3.5 grid grid-cols-4 gap-1 rounded-2xl border border-stone-200 bg-stone-100 p-1">
+          {/* 3 Offline Reference Tabs */}
+          <div className="mt-3.5 grid grid-cols-3 gap-1 rounded-2xl border border-stone-200 bg-stone-100 p-1">
             {(
               [
                 { id: 'cases', label: 'Cases', icon: Table2 },
                 { id: 'verbs', label: '60 Verbs', icon: BookMarked },
                 { id: 'preps', label: 'Preps', icon: GitFork },
-                { id: 'ai', label: 'AI Tutor', icon: Sparkles },
               ] as const
             ).map(({ id, label, icon: Icon }) => {
               const active = tab === id;
@@ -524,233 +380,6 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({
                   </div>
                 </section>
               ))}
-            </div>
-          )}
-
-          {/* TAB 4: AI TUTOR SETTINGS (BYOK) */}
-          {tab === 'ai' && (
-            <div className="space-y-4 pb-4">
-              <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-2xs">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
-                      AI Tutor Settings (BYOK)
-                    </h3>
-                    <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-                      Optional Gemini API key stored locally in your browser/device{' '}
-                      <code className="rounded bg-stone-100 px-1 py-0.5 text-[10px]">localStorage</code>.
-                      Supports Google AI Studio <code className="rounded bg-stone-100 px-1 py-0.5 text-[10px]">AQ.</code> &amp;{' '}
-                      <code className="rounded bg-stone-100 px-1 py-0.5 text-[10px]">AIza</code> keys.
-                    </p>
-                  </div>
-
-                  {/* Status Pill */}
-                  <span
-                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${
-                      connStatus.state === 'connected'
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                        : connStatus.state === 'error'
-                          ? 'border-red-200 bg-red-50 text-red-800'
-                          : 'border-stone-200 bg-stone-100 text-stone-600'
-                    }`}
-                  >
-                    {connStatus.state === 'connected' ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-700" />
-                    ) : connStatus.state === 'error' ? (
-                      <AlertCircle className="h-3 w-3 text-red-700" />
-                    ) : (
-                      <WifiOff className="h-3 w-3 text-stone-500" />
-                    )}
-                    {connStatus.state === 'connected'
-                      ? 'Connected'
-                      : connStatus.state === 'error'
-                        ? 'Error'
-                        : 'Offline Mode'}
-                  </span>
-                </div>
-
-                {/* API Key Input */}
-                <div className="mt-4 space-y-2">
-                  <label className="block text-[11px] font-bold text-slate-800">
-                    Gemini API Key
-                  </label>
-                  <div className="relative flex items-center">
-                    <input
-                      type={showKey ? 'text' : 'password'}
-                      value={apiKeyInput}
-                      onChange={(e) => setApiKeyInput(e.target.value)}
-                      onBlur={handleSaveKey}
-                      placeholder="Paste AQ. or AIza... key"
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2.5 pr-10 pl-3 text-xs font-medium text-slate-900 placeholder:text-stone-400 focus:border-blue-700 focus:bg-white focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowKey((s) => !s)}
-                      aria-label={showKey ? 'Hide API key' : 'Show API key'}
-                      className="absolute right-2.5 text-stone-400 hover:text-slate-700"
-                    >
-                      {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleSaveKey}
-                      className="rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-bold text-white active:scale-95"
-                    >
-                      Save Key
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleTestConnection()}
-                      disabled={testingConn}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-800 active:scale-95 disabled:opacity-50"
-                    >
-                      {testingConn && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      Test Connection
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClearKey}
-                      aria-label="Clear Key"
-                      className="ml-auto inline-flex items-center gap-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-bold text-stone-600 hover:text-red-700 active:scale-95"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Clear Key
-                    </button>
-                  </div>
-
-                  {connStatus.message && (
-                    <p
-                      className={`mt-1 text-[11px] font-medium ${
-                        connStatus.state === 'connected'
-                          ? 'text-emerald-700'
-                          : connStatus.state === 'error'
-                            ? 'text-red-700'
-                            : 'text-stone-500'
-                      }`}
-                    >
-                      {connStatus.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Model Selector */}
-                <div className="mt-4 border-t border-stone-100 pt-3.5">
-                  <label className="block text-[11px] font-bold text-slate-800">
-                    Gemini Model
-                  </label>
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => handleModelChange(e.target.value as GeminiModelId)}
-                    className="mt-1.5 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-slate-900 focus:border-blue-700 focus:bg-white focus:outline-none"
-                  >
-                    {GEMINI_MODELS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </section>
-
-              {/* Feature C: Backup Custom Words (Export / Import JSON) */}
-              <section className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
-                      Backup Custom Words
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-stone-500">
-                      {customCount} custom AI word{customCount === 1 ? '' : 's'} saved locally
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleExportBackup()}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-slate-900 active:scale-95"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Export JSON
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => importInputRef.current?.click()}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-slate-900 active:scale-95"
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    Import JSON
-                  </button>
-                  <input
-                    ref={importInputRef}
-                    type="file"
-                    accept=".json,application/json"
-                    onChange={(e) => void handleImportFile(e)}
-                    className="hidden"
-                  />
-                </div>
-
-                {customCount > 0 && (
-                  <div className="mt-2.5 border-t border-stone-100 pt-2.5">
-                    {!confirmClearAll ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmClearAll(true)}
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50/70 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 active:scale-95"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Clear All Custom Words
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleConfirmClearAll()}
-                          className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-xs font-extrabold text-white active:scale-95"
-                        >
-                          Confirm Clear ({customCount})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmClearAll(false)}
-                          className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 active:scale-95"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {backupStatus && (
-                  <p className="mt-2 text-[11px] font-semibold text-emerald-800">
-                    {backupStatus}
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs">
-                <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
-                  What AI Tutor unlocks
-                </h4>
-                <ul className="mt-2 space-y-1.5 text-[11px] text-stone-600">
-                  <li>
-                    <strong>✨ AI Drill (10) in Satzbau:</strong> Generates 10 fresh exercises tailored to your Mistake Notebook &amp; CEFR level.
-                  </li>
-                  <li>
-                    <strong>Smart Grammar Check:</strong> Recognizes valid alternative German word order in Self-Type &amp; explains missed rules in Fall-Training.
-                  </li>
-                  <li>
-                    <strong>100% Offline-First:</strong> Without a key, all 120 offline Satzbau sentences and 45 Fall-Training drills run locally.
-                  </li>
-                </ul>
-              </section>
             </div>
           )}
         </div>
